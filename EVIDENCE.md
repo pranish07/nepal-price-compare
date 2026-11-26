@@ -124,6 +124,7 @@ regenerated `package-lock.json` with npm 10. Re-run `45749158192` passed every s
 The OCR commit `8ff5a33` reintroduced the same npm 11 lockfile shape and run `45751719069` failed at
 `npm ci` again. Commit `0dd26dd` regenerated the lockfile with npm 10; run `45752247031` passed
 typecheck, lint, 168 tests, and build in 33 s.
+The quality-guard commit `1fcb5fd` passed CI run `45753315051` in 42 s with 171 tests.
 GitHub reports a non-fatal annotation that `actions/checkout@v4` and `actions/setup-node@v4` target
 Node 20 and are forced onto Node 24 by the runner; this did not affect the job.
 
@@ -239,10 +240,12 @@ frame-ancestors 'none'; base-uri 'self'; form-action 'self'
 The production build served by `next build` contains a separate 41 KB chunk containing the OCR API
 layer; the WASM core and language data remain CDN-loaded on first use.
 
-After pushing `8ff5a33` and the lockfile fix `0dd26dd`, the live Vercel deployment was checked:
+After pushing `8ff5a33`, the lockfile fix `0dd26dd`, and the quality-guard commit `1fcb5fd`, the live
+Vercel deployment was checked:
 
 ```text
 GET https://nepal-price-compare.vercel.app/ → contains "Or upload a product photo"
+    and "bright light, straight-on, text fills frame"
 GET https://nepal-price-compare.vercel.app/tesseract/worker.min.js → 200, 111307 bytes,
     Content-Type: application/javascript; charset=utf-8
 GET https://nepal-price-compare.vercel.app/ → CSP includes wasm-unsafe-eval, cdn.jsdelivr.net,
