@@ -17,7 +17,7 @@ Requirements: Node.js 20.9+ (Node 22 LTS recommended) and npm.
 git clone <your-repo-url> nepal-price-compare
 cd nepal-price-compare
 npm install
-cp .env.example .env.local   # optional; the app runs without any keys
+cp .env.example .env.local   # optional; text/link search runs without any keys
 npm run dev
 ```
 
@@ -25,7 +25,8 @@ Open http://localhost:3000. Try `Dr. Althea Melaclear Cream 20g` with city `Kath
 clear photo of a product label and confirm the detected name before searching.
 
 Serper discovery is optional. Without `SERPER_API_KEY` the app uses only its built-in store
-adapters and says so in the coverage panel. No credit is spent.
+adapters and says so in the coverage panel. No credit is spent. Photo identification needs both
+`GEMINI_API_KEY` and `GEMINI_MODEL`; without them, text and URL entry still work.
 
 ## Scripts
 
@@ -36,14 +37,15 @@ adapters and says so in the coverage panel. No credit is spent.
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm run lint` | ESLint flat config (Next.js core-web-vitals + TypeScript) |
-| `npm test` | Vitest, 171 tests including real-HTML contract tests |
+| `npm test` | Vitest, 198 tests including real-HTML contract tests; no live Gemini calls |
 | `npm run test:watch` | Vitest watch mode |
+| `npm run mcp` | Build and start the local stdio MCP server (`identify_product_image` only) |
 | `npm run verify:serper` | Optional live Serper probe (spends credits; see below) |
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local`. Everything is optional except when you want durable limits or
-Serper discovery.
+Copy `.env.example` to `.env.local`. Everything is optional for text/link search. Serper discovery
+requires its key; photo identification requires both Gemini variables.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -65,6 +67,10 @@ Serper discovery.
 | `ADAPTER_TIMEOUT_MS` | `9000` | Per-adapter timeout. |
 | `SEARCH_RATE_LIMIT_PER_HOUR` | `10` | Per-IP search limit. |
 | `DETECT_RATE_LIMIT_PER_HOUR` | `30` | Per-IP link/text detection limit. |
+| `IMAGE_DETECT_RATE_LIMIT_PER_HOUR` | `10` | Per-IP photo detection limit. |
+| `GEMINI_API_KEY` | unset | Enables free Gemini REST photo identification. Server-only; never sent to the browser. |
+| `GEMINI_MODEL` | unset | Model used by the Gemini REST call. No runtime fallback; `.env.example` suggests `gemini-3.5-flash-lite`. |
+| `GEMINI_DAILY_CEILING` | `200` | Global daily image-detection ceiling; fail closed. |
 
 ## API
 
@@ -90,6 +96,38 @@ curl -s http://localhost:3000/api/detect \
 
 Text input works too: `{"input":"Dr. Althea Melaclear Cream 20g"}`.
 
+### `POST /api/detect-image`
+
+Detects a skincare/beauty product from a photo using the free Gemini REST API. Send multipart form
+data with one `image` field. Only JPG, PNG, and WebP are accepted, magic bytes are checked, and the
+file must be at most 3 MB. The API key stays on the server and is sent to Google in the
+`x-goog-api-key` header.
+
+```bash
+curl -s http://localhost:3000/api/detect-image \
+  -F 'image=@label.png;type=image/png'
+```
+
+```json
+{
+  "guess": {
+    "brand": "La Roche-Posay",
+    "name": "Cicaplast Baume B5",
+    "size": null,
+    "confidence": 0.82
+  },
+  "query": {
+    "name": "cicaplast baume b5",
+    "brand": "la roche posay"
+  },
+  "warnings": ["No size was detected. Add it for an exact price-per-unit comparison."]
+}
+```
+
+The response is always passed through the editable confirmation step. Errors are JSON with an
+`error` string; quota, busy, or upstream failures suggest typing the product name instead. Logs
+contain `requestId`, `durationMs`, `status`, and `confidence`, never the image or API key.
+
 ### `POST /api/search` (Server-Sent Events)
 
 ```bash
@@ -111,32 +149,66 @@ on `done`.
 
 ### `GET /api/health`
 
-Returns version, uptime, `serperConfigured`, `kvConfigured`, `cacheMode`, and timestamp.
+Returns version, uptime, `serperConfigured`, `geminiConfigured`, `kvConfigured`, `cacheMode`, and
+timestamp. `geminiConfigured` is a boolean only; it never exposes the key or model.
 
-## Image upload (OCR)
+## Image upload (free Gemini REST)
 
-The home page accepts JPG, PNG, WebP, GIF, or BMP images up to 8 MB. OCR runs **in the browser** with
-[Tesseract.js](https://tesseract.projectnaptha.com/): the photo is never uploaded. Three page-layout
-modes are tried and the best-looking result is chosen; the flattened text is posted to `/api/detect`,
-which reuses the existing name/brand/size parser. The user then confirms or edits the fields in
-`ProductConfirm` before the normal `/api/search` pipeline starts.
+The home page accepts `image/*` from the file picker or drag-and-drop. The browser first downscales
+the photo to at most 1024 px on the long edge and re-encodes it as JPEG at quality 0.85, then posts it
+to `/api/detect-image`. The server allows JPG, PNG, and WebP up to 3 MB and verifies the magic bytes
+before sending the image to Google.
 
-- Tesseract.js is dynamically imported only when an image is chosen, so the initial page load stays
-  small.
-- `public/tesseract/worker.min.js` is self-hosted. The WASM core and English language data are
-  fetched from jsDelivr on first use and cached by the browser. There is no paid vision API and no
-  new environment variable.
-- The CSP allows the jsDelivr worker assets, `wasm-unsafe-eval`, blob image previews, and the local
-  Web Worker. `workerBlobURL: false` keeps the worker at a same-origin URL.
-- Before OCR, the browser upscales small images and applies grayscale + contrast in a canvas. Tesseract
-  then runs automatic, single-block, and sparse-text passes with auto-rotation; a small scoring
-  function prefers brand, size, and skincare words and penalises isolated letters and symbol runs.
-- If the result still looks uncertain, the raw text appears in an editable box with a **Use this text**
-  button and a direct **Type product name instead** shortcut. It is not rejected or hidden.
-- OCR is English-only and best-effort. It can misread fonts, packaging angles, or low-resolution
-  photos; the editable confirmation step is part of the flow, not an optional extra.
-- File type, size, readable-text, and `/api/detect` failures are shown inline. No OCR result is
-  treated as verified without user confirmation.
+- The exact privacy notice is shown before upload: **Photos are sent to Google's free Gemini API;
+  free-tier data may be used to improve Google products. Don't upload private photos.**
+- The model is asked for skincare/beauty information only, with `null` values when text is not clearly
+  readable, no guessed size, confidence from 0 to 1, and `null` + `0` for non-beauty photos.
+- Model output is treated as untrusted: JSON parsing is guarded, strings are trimmed and capped at
+  120 characters, control characters are stripped, and confidence is clamped. React renders the guess
+  as text, never as HTML.
+- The existing name/brand/size parser converts the guess into a `ProductQuery`. The editable
+  confirmation card shows how Gemini read the photo. Confidence below 0.5 shows **Not sure, please
+  check**; a missing size shows the existing missing-size warning.
+- A skeleton appears while detection runs. Quota, busy, malformed, and upstream errors show a friendly
+  inline message with a **Type product name instead** button. Text and URL search are unaffected.
+- Per-IP detection is limited to 10/hour and the global daily ceiling defaults to 200. If a limiter
+  or ledger is unavailable, the route fails closed: **Image detection is busy, type the product name
+  instead.**
+- No Gemini request runs in CI. The La Roche-Posay test uses a synthetic PNG and a recorded response;
+  live extraction quality is not claimed. See `docs/SPIKES.md` §7.
+
+The earlier on-device Tesseract OCR code remains in the repository as historical implementation, but
+the current UI uses Gemini.
+
+## Local MCP server
+
+`npm run mcp` builds `mcp/server.ts` to `.mcp-build/` and starts a local stdio server using the
+official `@modelcontextprotocol/sdk` v1. It exposes one tool, `identify_product_image`, which takes
+exactly one of `image_path` or `image_base64` plus an optional `mime_type`, calls the same
+`identifyProduct()` core as the web route, and returns JSON text containing `guess` and the normalized
+`query`. Paths must stay inside the project, images are limited to 3 MB JPG/PNG/WebP, and the key and
+model come only from the environment.
+
+Example client configuration (replace the absolute path):
+
+```json
+{
+  "mcpServers": {
+    "nepal-price-compare": {
+      "command": "npm",
+      "args": ["run", "mcp"],
+      "cwd": "/absolute/path/to/nepal-price-compare",
+      "env": {
+        "GEMINI_API_KEY": "your-free-key",
+        "GEMINI_MODEL": "gemini-3.5-flash-lite"
+      }
+    }
+  }
+}
+```
+
+There is deliberately no `search_prices` tool: reusing the price pipeline would spend Serper credits
+by default. See decision D28 in `docs/DECISIONS.md`.
 
 ## Credit budget
 
@@ -169,9 +241,11 @@ never prints the API key.
    repo root contains other folders.
 2. Node version 20.9+ (22 recommended). Build command `npm run build`; output is detected by Next.
 3. Add env vars in Project Settings. For a real deployment, set the two Upstash vars so the daily
-   credit ceiling and rate limits are shared across instances.
-4. `/api/search` sets `maxDuration = 60`; the Hobby plan supports streaming responses of that
-   length. Heartbeat comments keep proxies from closing idle streams.
+   credit ceiling and rate limits are shared across instances. Add `GEMINI_API_KEY` and
+   `GEMINI_MODEL` only if photo identification should be enabled; the model name is required at
+   runtime and is not defaulted in code.
+4. `/api/search` sets `maxDuration = 60`; `/api/detect-image` sets 30. The Hobby plan supports
+   streaming responses of that length. Heartbeat comments keep proxies from closing idle streams.
 5. Do not enable Vercel Analytics/Speed Insights if you need the strictest possible zero recurring
    cost setup; the app itself needs no paid services.
 
@@ -209,19 +283,22 @@ optional.
 ## Repository layout
 
 ```
-src/app/api/{detect,search,health}/route.ts   HTTP + SSE entry points
-src/components/                               client UI (incl. ImageUpload)
-src/lib/ocr.ts                                browser OCR wrapper + text cleanup
-public/tesseract/                             self-hosted Tesseract worker + license
-src/lib/adapters/                             store-specific parsers + resilience
-src/lib/extract/                              generic product/JSON-LD/RSC extraction
-src/lib/{match,rank,sort,normalize,size,price}.ts  pure comparison logic
-src/lib/{budget,cache,rate-limit,serper}.ts   cost and quota guards
-src/lib/{ssrf,http}.ts                        SSRF-safe fetching
-src/lib/pipeline.ts                           orchestration, streaming, isolation
-src/test/fixtures/                            real saved HTML for contract tests
-spikes/                                       raw spike captures
-docs/                                         design, decisions, evidence, limitations
+src/app/api/{detect,detect-image,search,health}/route.ts  HTTP + SSE entry points
+src/components/                                           client UI (incl. ImageUpload)
+src/lib/vision/{image,identifyProduct,client}.ts          image guards, Gemini core, browser resize
+src/lib/ocr.ts                                            historical on-device OCR (not used by UI)
+public/tesseract/                                         historical self-hosted Tesseract assets
+mcp/{server,cli}.ts                                       local stdio MCP server
+tsconfig.mcp.json                                         CommonJS MCP build config
+src/lib/adapters/                                         store-specific parsers + resilience
+src/lib/extract/                                          generic product/JSON-LD/RSC extraction
+src/lib/{match,rank,sort,normalize,size,price}.ts         pure comparison logic
+src/lib/{budget,cache,rate-limit,serper}.ts               cost and quota guards
+src/lib/{ssrf,http}.ts                                    SSRF-safe fetching
+src/lib/pipeline.ts                                       orchestration, streaming, isolation
+src/test/fixtures/                                        saved HTML and image/response test doubles
+spikes/                                                   raw spike captures
+docs/                                                     design, decisions, evidence, limitations
 ```
 
 Further reading: `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.md`,
@@ -230,7 +307,22 @@ Further reading: `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.m
 ## Honesty notes
 
 - Every number comes from a source page and carries a URL plus `fetchedAt`.
-- Image OCR is a convenience for entering a product name, not proof of product identity.
+- Gemini photo identification is a convenience for entering a product name, not proof of product
+  identity. Always check the editable fields.
 - Missing data is displayed as "not listed", never inferred from a domain or a competitor.
 - Different sizes are kept but flagged and excluded from Cheapest.
 - We do not claim complete coverage, authenticity, or product efficacy. Verify on the seller site.
+
+## Verified live vs assumed
+
+- **Verified live earlier:** store fetches, parser fixtures, `/api/detect`, and the production
+  `/api/health` response before Gemini was added.
+- **Verified from official docs on 2026-11-26:** a free stable model with image input and structured
+  output, inline `generateContent` image parts, and the privacy implication of free-tier data use.
+  Sources are listed in `docs/SPIKES.md` §7.
+- **Not verified live:** no `GEMINI_API_KEY` was available, so no Gemini request was made; acceptance
+  of camelCase `responseSchema` on the live REST endpoint and real extraction quality are assumed.
+- **Not publicly verified:** numeric free-tier RPM/RPD limits require signing in to AI Studio, so the
+  app enforces its own per-IP and global ceilings.
+- **Not a real photo:** the La Roche-Posay fixture is synthetic and its Gemini response is a recorded
+  test double, not a live model response.

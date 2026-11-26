@@ -9,6 +9,8 @@ inferred from those schemas, so a runtime parse and a compile-time type cannot d
 | --- | --- | --- |
 | `Size` | `value: number > 0`, `unit: "g" \| "ml"` | Canonical units only. `oz` is converted to `g`/`ml`; g and ml are never converted to each other. |
 | `ProductQuery` | `name`, optional `brand`, `size`, `city` | `city` affects ranking only, never the cache key. |
+| `ProductGuess` | nullable `brand`, `name`, `size`; `confidence: 0…1` | Untrusted Gemini output. Strings are capped at 120 chars and stripped of control chars before use. |
+| `DetectImageResult` | `guess`, normalized `query`, `warnings` | Returned by `/api/detect-image`; never treated as verified without user confirmation. |
 | `Money` | `amount: number >= 0`, `currency: "NPR"` | NPR is the only supported currency. |
 | `TrustSignals` | optional `authenticityStated`, `physicalPickup`, `reviews` | Booleans/count as reported by the store; absent means unknown. |
 
@@ -78,6 +80,12 @@ event carries the complete `SearchResult` so a late client can ignore intermedia
 `/api/detect` accepts `{ input }` and returns `DetectResult`: a parsed `query`, optional raw
 `preview`, `warnings`, and optional `sourceUrl`/`fetchedAt`. Text detection never fetches; URL
 detection uses the same SSRF-safe fetcher and extractor as search.
+
+`POST /api/detect-image` accepts multipart `image` bytes and returns `DetectImageResult`. The
+`guess` is the sanitized model output; `query` is produced by the same `parseProductText()` and size
+parser used for typed input. A missing size or brand becomes a warning, and a guess with confidence
+below 0.5 gets an additional UI warning. The local MCP tool returns JSON text shaped as
+`{ guess, query }` from the same core.
 
 ## 7. Example final event payload (abridged)
 

@@ -6,15 +6,16 @@ recorded in `DECISIONS.md`.
 
 ## 1. Problem and scope
 
-A user pastes a product URL or types a product name and gets a comparison of Nepali sellers of that
-exact product: price in NPR, stock, location, delivery, price per unit, plus **Cheapest** and
-**Best value** picks with a template-generated explanation.
+A user pastes a product URL, types a product name, or uploads a clear label photo and gets a
+comparison of Nepali sellers of that exact product: price in NPR, stock, location, delivery, price per
+unit, plus **Cheapest** and **Best value** picks with a template-generated explanation.
 
 V1 is deliberately narrow:
 
 - Skincare/beauty only.
 - Nepal only, NPR only.
-- No accounts, no price history, no image upload, no login-walled sources.
+- No accounts, no price history, no login-walled sources. Image upload is an optional entry aid, not
+  a source of inventory or proof of identity.
 - No claims about efficacy, safety, or medical outcomes.
 
 ## 2. Constraints that drive the design
@@ -26,6 +27,8 @@ V1 is deliberately narrow:
 | One developer | Few moving parts. Pure functions for matching/ranking. Adapters are one file + one registry line. |
 | Latency | Stream over SSE. Each source resolves independently. A slow store cannot block the final result. |
 | Trust | Every price carries a source URL and `fetchedAt`. Missing values are `null` and render as "not listed". |
+| Free Gemini tier | Image identification is optional, budgeted, and never a paid API. Free-tier data may be used to improve Google products, so the exact privacy notice is shown before upload. |
+| Untrusted model output | A photo guess is normalized with the existing parser and always confirmed by a human before search. |
 
 ## 3. Assumptions (and how each is verified)
 
@@ -41,12 +44,16 @@ V1 is deliberately narrow:
 | A8 | A 6 h cache is acceptable for prices | Product decision | **Accepted** — configurable via `CACHE_TTL_SECONDS` |
 | A9 | Vercel Hobby allows a 60 s streaming function | Vercel docs | **Verified by documentation**; route sets `maxDuration = 60` |
 | A10 | In-memory rate limits/cache are per-instance on serverless | Platform behavior | **Known limitation**; KV adapter is provided and recommended |
+| A11 | A free stable Gemini model accepts inline images and structured JSON | Official docs read 2026-11-26; `SPIKES.md` §7 | **Verified by documentation**, not live |
+| A12 | camelCase `responseSchema` is accepted by live v1beta REST | Official JS examples and protobuf JSON aliases | **Assumed**; no key was available; tests assert the outgoing body |
+| A13 | Numeric free-tier RPM/RPD limits | Signed-in AI Studio page required; docs say limits are not guaranteed | **Unverified**; app enforces its own 10/IP/hour and 200/day ceilings |
+| A14 | Free-tier content may be used to improve Google products | Official model card | **Verified by documentation**; exact privacy notice shown in UI |
 
 ## 4. Non-goals
 
-Accounts, price history/charts, alerts, image upload, non-beauty categories, scraping behind login,
-checkout integration, claims about product efficacy, and "complete market coverage". The UI always
-says the result set is partial.
+Accounts, price history/charts, alerts, automatic trust in a photo guess, non-beauty categories,
+scraping behind login, checkout integration, claims about product efficacy, and "complete market
+coverage". The UI always says the result set is partial.
 
 ## 5. Architecture
 
@@ -55,7 +62,10 @@ says the result set is partial.
   user input ───▶│ /api/detect                  │  URL: safe fetch + extract
   (URL or text)  │  -> ProductQuery + preview    │  text: parse + normalize
                  └──────────────┬───────────────┘
-                                │ user confirms/edits
+   label photo ──▶ /api/detect-image ──> Gemini REST ──> sanitized guess ──┐
+   (optional)       10/IP/hour, 200/day ceiling                            │
+                                │                                        │
+                                └────── user confirms/edits ◀────────────┘
                                 ▼
                  ┌──────────────────────────────┐
                  │ POST /api/search (SSE)       │
@@ -113,6 +123,19 @@ export interface CacheStore {
 export interface SafeFetch {
   html(url: string, opts?: { timeoutMs?: number; maxBytes?: number }): Promise<FetchedPage>;
 }
+
+// Optional image entry point. The guess is untrusted until the user confirms it.
+export interface ProductGuess {
+  brand: string | null;
+  name: string | null;
+  size: string | null;
+  confidence: number; // 0..1
+}
+
+export function identifyProduct(
+  input: { imageBase64: string; mimeType: "image/jpeg" | "image/png" | "image/webp" },
+  deps: { apiKey: string; model: string; fetch: typeof fetch },
+): Promise<ProductGuess>;
 ```
 
 The pipeline is dependency-injected so integration tests can supply fake adapters and a fake fetch.
@@ -191,13 +214,18 @@ The app fetches user-supplied URLs, so the URL validator is a security boundary:
   `frame-ancestors 'none'`.
 - Secrets are server-only env vars. Logs include request IDs, never secrets or full user URLs with
   query strings (URLs are logged as origin + path only).
+- Image bytes are checked against magic bytes and a 3 MB cap; the Gemini key is sent in a header, not
+  a URL. Model output is parsed defensively, capped, stripped of control characters, and rendered as
+  text. Upstream error bodies are never returned; MCP file paths must stay inside the project.
 
 ## 11. Observability
 
 - One JSON line per event: `{ ts, level, event, requestId, ...fields }`.
 - Per-source: `sourceId`, `status`, `durationMs`, `errorClass`, `listingCount`.
 - Per-request: credits spent, cache hit/miss, fetch count, total duration.
-- `/api/health` returns version, uptime, Serper/KV configuration booleans, and cache mode.
+- `/api/detect-image` logs `requestId`, `status`, `durationMs`, and `confidence`; never the image or
+  API key. Errors log only typed codes or error classes.
+- `/api/health` returns version, uptime, Serper/Gemini/KV configuration booleans, and cache mode.
 - Dev-only debug panel in the UI shows budget and per-source timings.
 
 ## 12. UX
@@ -205,7 +233,8 @@ The app fetches user-supplied URLs, so the URL validator is a security boundary:
 Mobile-first single page:
 
 1. One input (URL or product name), optional city selector.
-2. Detected-product card, editable (name, brand, size, city), with a warning when size is missing.
+2. Detected-product card, editable (name, brand, size, city), with warnings for missing size and, for
+   photos, confidence below 0.5. A skeleton appears while Gemini is working.
 3. Top-3 cards: Cheapest, Best value, Closest to city (omitted honestly when data is missing).
 4. Full sortable table with seller, price, per-unit, stock, location, delivery, match, fetched at,
    and a source link.
@@ -223,6 +252,8 @@ Mobile-first single page:
 | Price/stock stale up to 6 h | Wrong price shown | Show `fetchedAt`; link to seller; "verify on seller site" |
 | False match | User sees wrong product | Similarity threshold; size flag; editable query; "different size" excluded from Cheapest |
 | SSRF bypass | Server-side request to internal network | Deny-by-default IP ranges, DNS pinning, redirect re-validation, dedicated test suite |
+| Gemini quota or bad extraction | Photo upload unavailable or wrong product | Per-IP limit, global daily ceiling, fail-closed busy message, low-confidence warning, editable card, text fallback |
+| Free-tier data use | Private photo leaves the app | Exact privacy notice before upload; no private-photo upload recommended; key stays server-side |
 | robots.txt/ToS changes | Legal/ethical risk | Adapters document their allowed paths; no `/wp-json/`; identify with UA; link back |
 | Vercel function duration | Truncated stream | `maxDuration = 60`; per-source timeouts; final event always sent |
 
@@ -248,6 +279,8 @@ Mobile-first single page:
 - Security tests cover IPv4/IPv6/metadata/redirect cases.
 - Manual smoke test against the live sites is documented in `README.md` and is opt-in (network
   tests are not part of CI).
+- Gemini tests use fake `fetch`, a synthetic PNG, and a recorded response. No CI job calls Gemini or
+  spends a free-tier request. Live extraction quality remains unverified until a key is supplied.
 
 ## 16. Acceptance mapping
 
@@ -260,3 +293,4 @@ Mobile-first single page:
 | M4 | `src/lib/serper.ts`, `budget.ts`; paging/credit tests with fake fetch |
 | M5 | `/api/search` SSE, cache, rate limit, SSRF tests |
 | M6 | UI, README, `.env.example`, Vercel notes, CI |
+| M7 | `src/lib/vision/*`, `/api/detect-image`, MCP tool, `SPIKES.md` §7, fake-fetch tests |

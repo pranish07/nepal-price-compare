@@ -12,6 +12,12 @@ returned as Server-Sent Events (SSE).
 ```
 Browser ──POST /api/detect──> detect route ──> SSRF-safe fetch ──> generic extractor
    │
+   ├──POST /api/detect-image> image route ──> MIME/magic-byte guard ──> Gemini REST
+   │                              │                                      │
+   │                              └─ per-IP limit + daily ceiling         └─ untrusted guess
+   │                                                                          │
+   │                                             existing name/size parser ────┘
+   │                                                     │
    └──POST /api/search──> search route ──> rate limit ──> runSearch()
                                                           │
                      ┌────────────────────────────────────┼─────────────────────────────┐
@@ -35,8 +41,10 @@ an error.
 
 | Area | Files | Responsibility |
 | --- | --- | --- |
-| HTTP entry points | `src/app/api/{detect,search,health}/route.ts` | Validate input, rate limit, stream SSE, map errors to status codes. |
-| Client | `src/components/` | Product confirmation, live results, top-3 cards, sortable table, source status, empty/error states. |
+| HTTP entry points | `src/app/api/{detect,detect-image,search,health}/route.ts` | Validate input, rate limit, identify photos, stream SSE, map errors to status codes. |
+| Client | `src/components/` | Image upload/downscale, product confirmation, live results, top-3 cards, sortable table, source status, empty/error states. |
+| Vision | `src/lib/vision/{image,identifyProduct,client}.ts` | MIME/magic-byte guards, strict Base64, Gemini REST call, untrusted-output sanitization, browser resize. |
+| MCP | `mcp/{server,cli}.ts`, `tsconfig.mcp.json` | Local stdio tool wrapping the same vision core; compiled to CommonJS by `npm run mcp`. |
 | Orchestration | `src/lib/pipeline.ts` | Cache lookup, single-flight, parallel source execution, event emission, budgets, final result. |
 | Store adapters | `src/lib/adapters/` | Store-specific URL construction and parsing. Shared timeout/retry/circuit-breaker wrapper. |
 | Extraction | `src/lib/extract/` | JSON-LD, DOM metadata, and embedded RSC product extraction shared by adapters and Serper candidates. |
@@ -97,7 +105,9 @@ is contract-tested.
 - **HTML:** at most 25 fetches per search, 8 s timeout, 2 MB per page, 6-way concurrency, and a
   500 ms per-host delay.
 - **Adapters:** 9 s timeout, at most one jittered retry, and a 3-failure/60 s circuit breaker.
-- **Users:** 10 searches/hour and 30 detections/hour per IP by default.
+- **Users:** 10 searches/hour, 30 link/text detections/hour, and 10 image detections/hour per IP by default.
+- **Gemini:** global `GEMINI_DAILY_CEILING` (default 200) is charged before the REST call. The
+  limiter/ledger failing closed returns the same busy message as an exhausted budget.
 - **Cache:** 6 h fresh, 24 h stale window, 10 min for empty results.
 
 The default implementations are in-process: fast, free, and suitable for a single instance. With
@@ -119,13 +129,21 @@ implementations. This matters on Vercel, where multiple instances do not share m
 User-supplied product text is Zod-validated and only used to build query strings or display text.
 Search pages from Serper are treated as untrusted URLs and go through the same fetcher.
 
+Image uploads are checked against declared MIME type **and** magic bytes, capped at 3 MB, and sent as
+inline Base64 to Gemini with the key in `x-goog-api-key`. Model output is untrusted: JSON parsing is
+guarded, strings are trimmed/capped/stripped of control characters, confidence is clamped, and React
+renders it as text. Upstream bodies are never returned to clients. The MCP tool accepts a Base64 blob
+or a path whose resolved and real paths both stay inside the project.
+
 ## 7. Deployment notes
 
 - `next build` emits a static `/` and dynamic API routes.
-- `/api/search` sets `maxDuration = 60`; `/api/detect` sets 30. Heartbeats prevent proxy idle
-  timeouts in the browser.
-- No environment variable is required for a local run. For production, set Upstash credentials if
-  shared limits are needed, and set `SERPER_API_KEY` only if the one-time credits should be used.
+- `/api/search` sets `maxDuration = 60`; `/api/detect` and `/api/detect-image` set 30. Heartbeats
+  prevent proxy idle timeouts in the browser.
+- No environment variable is required for local text/link search. For production, set Upstash
+  credentials if shared limits are needed, set `SERPER_API_KEY` only if the one-time credits should
+  be used, and set both `GEMINI_API_KEY` and `GEMINI_MODEL` to enable photo identification. There is
+  no runtime model fallback; `/api/health` exposes only a `geminiConfigured` boolean.
 - Store adapters are the extension point for more sellers; generic extraction is reused for Serper
   candidates. See the adapter guide in `README.md`.
 
@@ -134,3 +152,19 @@ Search pages from Serper are treated as untrusted URLs and go through the same f
 The design target is p50 first result under 3 s and p95 completion under 15 s. Streaming and cache
 hits are the main mechanisms. Real latency depends on third-party stores and is not guaranteed by
 a local test suite; see `KNOWN_LIMITATIONS.md` and `EVIDENCE.md` for what was actually measured.
+Gemini vision latency was not measured live; the REST call has a 20 s timeout inside the 30 s route.
+
+## 9. Image identification and MCP
+
+The browser downsizes the selected photo to 1024 px on the long edge and re-encodes it as JPEG q0.85.
+`/api/detect-image` checks the file, spends the per-IP and global budgets, then calls
+`identifyProduct()` with `temperature: 0`, `responseMimeType: "application/json"`, and a bounded
+`responseSchema`. `parseProductGuess()` sanitizes the JSON, and `queryFromGuess()` reuses
+`parseProductText()` and the size parser so image results and typed results share one normalization
+path. The client shows a skeleton, then an editable `ProductConfirm` card with a low-confidence
+warning; searching continues through the normal SSE pipeline.
+
+`mcp/server.ts` registers `identify_product_image` on the official v1 SDK. It accepts exactly one of
+`image_path` or `image_base64`, uses the same core and normalization, and returns JSON text with
+`guess` and `query`. It is a local/dev tool only; there is no `search_prices` tool because that would
+spend Serper credits by default. No live Gemini call is made by tests or CI.

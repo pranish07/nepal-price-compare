@@ -18,6 +18,12 @@ This file is intentionally blunt. It describes what the current build does not p
 - **Serper `num > 10` is unverified.** There is no `SERPER_API_KEY` in the development environment.
   Production code always sends `num: 10`. `npm run verify:serper -- "query" --num=20` is provided to
   check the behavior manually; it spends credits when a key is set.
+- **No live Gemini call was made.** There is no `GEMINI_API_KEY`. Official docs were checked on
+  2026-11-26, but acceptance of camelCase `responseSchema` on the live REST endpoint and real label
+  extraction quality are assumptions, not observations.
+- **Numeric Gemini free-tier RPM/RPD limits are not publicly available** without signing in to AI
+  Studio. The app's 10/IP/hour and 200/day ceilings are its own safety budget, not a claim about
+  Google's limits.
 - p50 first result < 3 s and p95 complete < 15 s are **design targets**, not load-test results.
   Real latency depends on third-party store speed, DNS, network, and Serper availability. The SSE
   design improves perceived speed but cannot guarantee those percentiles.
@@ -46,23 +52,31 @@ This file is intentionally blunt. It describes what the current build does not p
 - The 8-credit cap applies per uncached search. A stale cache hit triggers background revalidation,
   which may spend credits again, though it is single-flighted per key.
 - The daily ceiling fails closed for Serper discovery only; adapter results still stream.
+- The Gemini daily ledger defaults to in-memory and uses the namespace `npc:v1:gemini:<date>` when
+  Upstash is configured. Without shared KV on serverless, instances do not share that ceiling.
+- Image detection fails closed if the per-IP limiter or Gemini ledger throws. This can reject a valid
+  request, by design; text and URL entry remain available.
 
-## Image OCR
+## Image identification (free Gemini REST)
 
-- OCR is English-only (`eng`). Nepali-language labels are not recognised.
-- Tesseract.js can misread small text, stylised fonts, glare, or angled photos. Three layout passes
-  improve the odds, but the confirmation step is still required; OCR output is never verified.
-- OCR can still return wrong text. If the result looks uncertain it is shown in an editable box
-  before detection; otherwise it is shown in the editable confirmation step. Manual entry is always
-  available.
-- Canvas preprocessing and auto-rotation help small or low-contrast labels but cannot recover text
-  that is out of focus, heavily obscured, or not visible in the photo.
-- The first OCR loads the WASM core and language data from jsDelivr (about several MB) and relies on
-  browser caching thereafter. This uses no paid API but does require network access.
-- File validation accepts common browser image types up to 8 MB. HEIC and unsupported formats are
-  rejected rather than silently transcodes.
-- The browser worker/CSP path was built and the assets/header were checked locally, but no automated
-  browser test exercised drag-and-drop, IndexedDB caching, or a real camera photo.
+- The current UI uses Gemini, not the historical Tesseract code. Gemini can still misread labels,
+  invent confidence, or return nulls; the editable confirmation step is mandatory.
+- Confidence is a model-reported heuristic. Below 0.5 the UI says **Not sure, please check**, but a
+  high score is not proof of product identity.
+- The prompt says not to guess sizes, but the model may still be wrong. A missing size produces a
+  warning; a wrongly reported size must be corrected by the user.
+- The committed La Roche-Posay PNG is synthetic and the Gemini response is a recorded test double.
+  They prove parsing/normalization, not real-world extraction accuracy.
+- No automated browser test exercised drag-and-drop, canvas downscaling, camera photos, or the
+  privacy notice as rendered. The route and core are tested with fake bytes and fake `fetch`.
+- The browser re-encodes to JPEG at 1024 px/q0.85; the server accepts only JPG, PNG, and WebP up to
+  3 MB with matching magic bytes. HEIC and spoofed files are rejected.
+- Free-tier content may be used to improve Google products. The exact notice is shown before upload;
+  private photos should not be uploaded.
+- No model name is hard-coded at runtime. If `GEMINI_MODEL` is unset, photo detection is disabled
+  and text entry is the fallback.
+- The MCP tool is local/dev only, accepts paths inside the project or plain Base64, and intentionally
+  has no `search_prices` tool because that would spend Serper credits.
 
 ## Security boundary
 
@@ -86,6 +100,7 @@ This file is intentionally blunt. It describes what the current build does not p
 
 - Store markup or RSC payload changes can break an adapter silently; coverage will report an error
   or zero listings rather than inventing data.
-- `npm test` uses local fixtures and HTTP/DNS fakes. It does not call live stores or Serper.
+- `npm test` uses local fixtures and HTTP/DNS/fetch fakes. It does not call live stores, Serper, or
+  Gemini.
 - The Serper verification script prints response shape only and never prints the API key, but its
   output should still be handled normally because it reveals query/host information.
