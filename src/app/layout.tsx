@@ -3,10 +3,10 @@ import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nepal Price Compare — skincare prices from Nepali sellers",
+  title: "Nepal Price Compare — product prices from Nepali sellers",
   applicationName: "Nepal Price Compare",
   description:
-    "Compare prices for an exact skincare product across Nepali sellers. NPR prices, stock, delivery, and price per gram or millilitre.",
+    "Compare prices for an exact product across Nepali sellers. NPR prices, stock, delivery, and price per gram or millilitre.",
   robots: { index: true, follow: true },
   appleWebApp: {
     capable: true,

@@ -77,8 +77,7 @@ SSE capture.
 - Uncached event order: `status, source, listing, source, listing, source, done`.
 - Cached event order: `status, listing, listing, done` (no source work).
 - `done` is always sent and carries coverage and budget.
-- `GET /` returned `<title>Nepal Price Compare — skincare prices from Nepali sellers</title>` and the
-  "Paste a product link" UI copy.
+- `GET /` returned a "Nepal Price Compare" title and the "Paste a product link" UI copy.
 - Streamed listings are rendered in a live table while the search is running; badges appear on
   `done`.
 

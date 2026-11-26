@@ -78,7 +78,7 @@ export function cleanOcrText(raw: string): string {
 
 /**
  * Heuristic used only to choose the best of several Tesseract layout passes.
- * It rewards brand, size and skincare-category words and penalises isolated
+ * It rewards brand, size and beauty-category words and penalises isolated
  * letters and symbol runs. It never rejects an image by itself.
  */
 export function scoreOcrText(raw: string, confidence: number): number {

@@ -2,11 +2,11 @@
 
 **Live demo:** [https://nepal-price-compare.vercel.app/](https://nepal-price-compare.vercel.app/)
 
-Compare skincare products across Nepali sellers. Paste a product URL, type a product name, or upload
+Compare beauty products across Nepali sellers. Paste a product URL, type a product name, or upload
 a photo of the label. Confirm the detected product, then get a streamed comparison with NPR prices,
 stock, location, delivery, price per unit, and **Cheapest / Best value / Closest** picks.
 
-V1 is intentionally narrow: skincare/beauty, Nepal, NPR, no accounts, no price history, no complete
+V1 is intentionally narrow: beauty, Nepal, NPR, no accounts, no price history, no complete
 market claims. Results are always labelled as a partial survey.
 
 ## Quick start
@@ -98,7 +98,7 @@ Text input works too: `{"input":"Dr. Althea Melaclear Cream 20g"}`.
 
 ### `POST /api/detect-image`
 
-Detects a skincare/beauty product from a photo using the free Gemini REST API. Send multipart form
+Detects a beauty product from a photo using the free Gemini REST API. Send multipart form
 data with one `image` field. Only JPG, PNG, and WebP are accepted, magic bytes are checked, and the
 file must be at most 3 MB. The API key stays on the server and is sent to Google in the
 `x-goog-api-key` header.
@@ -161,7 +161,7 @@ before sending the image to Google.
 
 - The exact privacy notice is shown before upload: **Photos are sent to Google's free Gemini API;
   free-tier data may be used to improve Google products. Don't upload private photos.**
-- The model is asked for skincare/beauty information only, with `null` values when text is not clearly
+- The model is asked for beauty product information only, with `null` values when text is not clearly
   readable, no guessed size, confidence from 0 to 1, and `null` + `0` for non-beauty photos.
 - Model output is treated as untrusted: JSON parsing is guarded, strings are trimmed and capped at
   120 characters, control characters are stripped, and confidence is clamped. React renders the guess

@@ -2,7 +2,7 @@
   "name": "nepal-price-compare",
   "version": "0.1.0",
   "private": true,
-  "description": "Compare prices for skincare products across Nepali sellers.",
+  "description": "Compare prices for beauty products across Nepali sellers.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

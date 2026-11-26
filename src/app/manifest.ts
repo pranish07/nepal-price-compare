@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Nepal Price Compare",
     short_name: "Price Compare",
     description:
-      "Compare skincare prices across Nepali sellers, with NPR prices, stock, delivery, and price per unit.",
+      "Compare product prices across Nepali sellers, with NPR prices, stock, delivery, and price per unit.",
     id: "/",
     start_url: "/",
     scope: "/",

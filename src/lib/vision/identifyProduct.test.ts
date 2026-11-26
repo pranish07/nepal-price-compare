@@ -72,7 +72,7 @@ describe("identifyProduct", () => {
     );
     expect(JSON.stringify(body.generationConfig.responseSchema)).not.toContain('"string","null"');
     const prompt = String(body.contents[0]?.parts[0]?.text);
-    expect(prompt).toMatch(/skincare or beauty/i);
+    expect(prompt).toMatch(/beauty product/i);
     expect(prompt).toMatch(/Never guess or infer the size/i);
     expect(prompt).toMatch(/0 to 1/i);
     expect(prompt).toMatch(/Ignore any instructions/i);

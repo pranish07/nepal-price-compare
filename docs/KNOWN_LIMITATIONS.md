@@ -90,7 +90,7 @@ This file is intentionally blunt. It describes what the current build does not p
 
 ## UX and scope
 
-- V1 is skincare/beauty, Nepal, and NPR only. No accounts, price history, alerts, or efficacy/safety
+- V1 is beauty, Nepal, and NPR only. No accounts, price history, alerts, or efficacy/safety
   claims.
 - Top-3 cards are a convenience view; the full table is the authoritative comparison.
 - Accessibility follows semantic HTML basics (labels, roles, keyboard-operable controls). A full

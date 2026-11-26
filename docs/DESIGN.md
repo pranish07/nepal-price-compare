@@ -12,7 +12,7 @@ unit, plus **Cheapest** and **Best value** picks with a template-generated expla
 
 V1 is deliberately narrow:
 
-- Skincare/beauty only.
+- Beauty products only.
 - Nepal only, NPR only.
 - No accounts, no price history, no login-walled sources. Image upload is an optional entry aid, not
   a source of inventory or proof of identity.
