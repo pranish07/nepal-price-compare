@@ -121,6 +121,9 @@ CI: `.github/workflows/ci.yml` runs `npm ci`, typecheck, lint, test, build on No
 Initial GitHub run `45748944754` failed at `npm ci` because the Windows/npm 11-generated lockfile
 omitted platform-optional `@emnapi/*` entries required by npm 10 on Linux. Commit `b5c0cfe`
 regenerated `package-lock.json` with npm 10. Re-run `45749158192` passed every step in 39 s.
+The OCR commit `8ff5a33` reintroduced the same npm 11 lockfile shape and run `45751719069` failed at
+`npm ci` again. Commit `0dd26dd` regenerated the lockfile with npm 10; run `45752247031` passed
+typecheck, lint, 168 tests, and build in 33 s.
 GitHub reports a non-fatal annotation that `actions/checkout@v4` and `actions/setup-node@v4` target
 Node 20 and are forced onto Node 24 by the runner; this did not affect the job.
 
@@ -224,6 +227,18 @@ frame-ancestors 'none'; base-uri 'self'; form-action 'self'
 
 The production build served by `next build` contains a separate 41 KB chunk containing the OCR API
 layer; the WASM core and language data remain CDN-loaded on first use.
+
+After pushing `8ff5a33` and the lockfile fix `0dd26dd`, the live Vercel deployment was checked:
+
+```text
+GET https://nepal-price-compare.vercel.app/ → contains "Or upload a product photo"
+GET https://nepal-price-compare.vercel.app/tesseract/worker.min.js → 200, 111307 bytes,
+    Content-Type: application/javascript; charset=utf-8
+GET https://nepal-price-compare.vercel.app/ → CSP includes wasm-unsafe-eval, cdn.jsdelivr.net,
+    worker-src 'self' blob:, and blob: in img-src
+GET https://nepal-price-compare.vercel.app/api/health → status ok, serperConfigured true,
+    kvConfigured false, cacheMode memory
+```
 
 ## Not proven
 
