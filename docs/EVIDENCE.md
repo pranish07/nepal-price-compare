@@ -9,7 +9,7 @@ M3 safety/cost controls, M4 streaming/UI, M5 tests/CI/docs, M6 end-to-end smoke,
 
 ## M0 — Feasibility and robots compliance
 
-Evidence: `SPIKES.md` and raw captures in `spikes/`.
+Evidence: `SPIKES.md` and raw captures in `../spikes/`.
 
 - Bonjour `/wp-json/` is disallowed by `robots.txt`; it was not used.
 - Bonjour `/shop/?s=dr+althea` returned 200 with 14 product URLs in the spike capture.
@@ -114,7 +114,7 @@ Route (app)
 └ ƒ /api/search
 ```
 
-Documentation present: `README.md`, `DESIGN.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`,
+Documentation present: `../README.md`, `DESIGN.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`,
 `DECISIONS.md`, `KNOWN_LIMITATIONS.md`, `SPIKES.md`, `EVIDENCE.md`, `.env.example`.
 CI: `.github/workflows/ci.yml` runs `npm ci`, typecheck, lint, test, build on Node 22.
 

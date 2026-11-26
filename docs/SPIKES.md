@@ -1,7 +1,7 @@
 # Spike results (M0)
 
 Date: 2026-11-26. All requests used `User-Agent: NepalPriceCompare/0.1 (+contact: dev@example.com)`.
-Raw captures are in `spikes/`.
+Raw captures are in `../spikes/`.
 
 ## 1. Does bonjournp.com expose `/wp-json/wc/store/v1/products?search=...`?
 
@@ -53,7 +53,7 @@ initialProductsResponse\":{
 
 The array had 17 products for `dr althea`, including all expected variants. This is richer than the
 Bonjour card HTML: brand, size, sale price, and exact stock quantity are all present. The extraction
-approach (balanced-brace scan, then double JSON decode) is proven in `spikes/parse_probe.mjs`.
+approach (balanced-brace scan, then double JSON decode) is proven in `../spikes/parse_probe.mjs`.
 
 The same search page also contains store-level facts: `Dharan, Sunsari, Nepal`,
 `Free delivery in Dharan`, `Delivery across Nepal`, `Cash on delivery in Dharan`. We can attach these

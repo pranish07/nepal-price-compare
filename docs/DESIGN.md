@@ -253,7 +253,7 @@ Mobile-first single page:
 
 | Milestone | Evidence |
 | --- | --- |
-| M0 | `DESIGN.md`, `SPIKES.md`, raw captures in `spikes/` |
+| M0 | `DESIGN.md`, `SPIKES.md`, raw captures in `../spikes/` |
 | M1 | `src/lib/extract/*` + `bonjour-product.html` fixture test; asserts Dr. Althea / 20 g / NPR 2000 / in stock |
 | M2 | `src/lib/adapters/*` + fixtures; failing-adapter integration test |
 | M3 | `src/lib/match.ts`, `rank.ts`, unit tests; per-gram and badge tests |

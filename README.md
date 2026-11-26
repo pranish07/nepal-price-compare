@@ -180,8 +180,8 @@ optional.
 
 ## Adding a store adapter
 
-1. Check the store's `robots.txt` and terms. Record what you verified in `SPIKES.md` or
-   `DECISIONS.md`.
+1. Check the store's `robots.txt` and terms. Record what you verified in `docs/SPIKES.md` or
+   `docs/DECISIONS.md`.
 2. Create `src/lib/adapters/<store>.ts` exporting a `StoreAdapter`:
 
    ```ts
@@ -221,10 +221,11 @@ src/lib/{ssrf,http}.ts                        SSRF-safe fetching
 src/lib/pipeline.ts                           orchestration, streaming, isolation
 src/test/fixtures/                            real saved HTML for contract tests
 spikes/                                       raw spike captures
+docs/                                         design, decisions, evidence, limitations
 ```
 
-Further reading: `ARCHITECTURE.md`, `DATA_MODEL.md`, `DECISIONS.md`, `KNOWN_LIMITATIONS.md`,
-`DESIGN.md`, `SPIKES.md`, `EVIDENCE.md`.
+Further reading: `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.md`,
+`docs/KNOWN_LIMITATIONS.md`, `docs/DESIGN.md`, `docs/SPIKES.md`, `docs/EVIDENCE.md`.
 
 ## Honesty notes
 
