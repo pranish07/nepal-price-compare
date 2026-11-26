@@ -10,5 +10,6 @@ coverage/
 .DS_Store
 next-env.d.ts
 .vercel
+.mcp-build/
 tsconfig.tsbuildinfo
 eng.traineddata

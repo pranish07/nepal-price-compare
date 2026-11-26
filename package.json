@@ -11,6 +11,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "mcp": "tsc -p tsconfig.mcp.json && node .mcp-build/mcp/cli.js",
+    "mcp:build": "tsc -p tsconfig.mcp.json",
     "verify:serper": "node scripts/verify-serper.mjs"
   },
   "dependencies": {
