@@ -31,7 +31,7 @@ const STATUS_BY_CODE: Record<VisionErrorCode, number> = {
   quota: 429,
   upstream: 502,
   parse: 422,
-  not_beauty: 422,
+  not_product: 422,
 };
 
 export interface DetectImageRouteDeps {

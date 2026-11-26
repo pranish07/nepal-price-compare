@@ -2,12 +2,14 @@
 
 **Live demo:** [https://nepal-price-compare.vercel.app/](https://nepal-price-compare.vercel.app/)
 
-Compare beauty products across Nepali sellers. Paste a product URL, type a product name, or upload
-a photo of the label. Confirm the detected product, then get a streamed comparison with NPR prices,
-stock, location, delivery, price per unit, and **Cheapest / Best value / Closest** picks.
+Compare products across Nepali sellers. Paste a product URL, type a product name, or upload a
+product photo. Confirm the detected product, then get a streamed comparison with NPR prices, stock,
+location, delivery, price per unit where available, and **Cheapest / Best value / Closest** picks.
 
-V1 is intentionally narrow: beauty, Nepal, NPR, no accounts, no price history, no complete
-market claims. Results are always labelled as a partial survey.
+Photo identification accepts many retail products, including shoes, clothing, electronics, household
+goods, and beauty products. Built-in price adapters currently focus on beauty stores; other
+categories depend on the optional Serper fallback. V1 remains Nepal/NPR only with no accounts, no
+price history, and no complete-market claims. Results are always labelled as a partial survey.
 
 ## Quick start
 
@@ -37,7 +39,7 @@ adapters and says so in the coverage panel. No credit is spent. Photo identifica
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm run lint` | ESLint flat config (Next.js core-web-vitals + TypeScript) |
-| `npm test` | Vitest, 198 tests including real-HTML contract tests; no live Gemini calls |
+| `npm test` | Vitest suite including real-HTML contract tests; no live Gemini calls |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run mcp` | Build and start the local stdio MCP server (`identify_product_image` only) |
 | `npm run verify:serper` | Optional live Serper probe (spends credits; see below) |
@@ -98,10 +100,11 @@ Text input works too: `{"input":"Dr. Althea Melaclear Cream 20g"}`.
 
 ### `POST /api/detect-image`
 
-Detects a beauty product from a photo using the free Gemini REST API. Send multipart form
+Detects a retail product from a photo using the free Gemini REST API. Send multipart form
 data with one `image` field. Only JPG, PNG, and WebP are accepted, magic bytes are checked, and the
 file must be at most 3 MB. The API key stays on the server and is sent to Google in the
-`x-goog-api-key` header.
+`x-goog-api-key` header. The prompt accepts shoes, clothing, electronics, household goods, beauty
+products, and other consumer products when brand or model text is readable.
 
 ```bash
 curl -s http://localhost:3000/api/detect-image \
@@ -161,14 +164,17 @@ before sending the image to Google.
 
 - The exact privacy notice is shown before upload: **Photos are sent to Google's free Gemini API;
   free-tier data may be used to improve Google products. Don't upload private photos.**
-- The model is asked for beauty product information only, with `null` values when text is not clearly
-  readable, no guessed size, confidence from 0 to 1, and `null` + `0` for non-beauty photos.
+- The model is asked for general retail product information, with `null` values when text is not
+  clearly readable, no guessed size, confidence from 0 to 1, and `null` + `0` for non-product photos
+  or generic objects without readable brand/model text.
+- Only g/ml pack sizes fit the app's canonical size field. Shoe, clothing, and other non-pack sizes
+  are left out of the query with a warning; type them in the product name if they matter.
 - Model output is treated as untrusted: JSON parsing is guarded, strings are trimmed and capped at
   120 characters, control characters are stripped, and confidence is clamped. React renders the guess
   as text, never as HTML.
 - The existing name/brand/size parser converts the guess into a `ProductQuery`. The editable
   confirmation card shows how Gemini read the photo. Confidence below 0.5 shows **Not sure, please
-  check**; a missing size shows the existing missing-size warning.
+  check**; a missing pack size shows the existing missing-size warning.
 - A skeleton appears while detection runs. Quota, busy, malformed, and upstream errors show a friendly
   inline message with a **Type product name instead** button. Text and URL search are unaffected.
 - Per-IP detection is limited to 10/hour and the global daily ceiling defaults to 200. If a limiter

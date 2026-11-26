@@ -159,9 +159,9 @@ export function createMcpServer(deps: McpDeps = envMcpDeps()): McpServer {
   server.registerTool(
     "identify_product_image",
     {
-      title: "Identify a beauty product photo",
+      title: "Identify a retail product photo",
       description:
-        "Identify a beauty product from a local image and return a normalized product query. Uses the free Gemini API.",
+        "Identify shoes, clothing, electronics, household goods, beauty products, or another retail product from a local image and return a normalized product query. Uses the free Gemini API.",
       inputSchema: IdentifyProductImageInputSchema,
     },
     async (args) => {

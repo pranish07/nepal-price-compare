@@ -12,7 +12,7 @@ unit, plus **Cheapest** and **Best value** picks with a template-generated expla
 
 V1 is deliberately narrow:
 
-- Beauty products only.
+- Photo identification accepts many retail products; built-in price adapters focus on beauty stores.
 - Nepal only, NPR only.
 - No accounts, no price history, no login-walled sources. Image upload is an optional entry aid, not
   a source of inventory or proof of identity.
@@ -52,9 +52,9 @@ V1 is deliberately narrow:
 
 ## 4. Non-goals
 
-Accounts, price history/charts, alerts, automatic trust in a photo guess, non-beauty categories,
-scraping behind login, checkout integration, claims about product efficacy, and "complete market
-coverage". The UI always says the result set is partial.
+Accounts, price history/charts, alerts, automatic trust in a photo guess, guaranteed price coverage
+for every product category, scraping behind login, checkout integration, claims about product
+efficacy, and "complete market coverage". The UI always says the result set is partial.
 
 ## 5. Architecture
 

@@ -72,7 +72,8 @@ describe("identifyProduct", () => {
     );
     expect(JSON.stringify(body.generationConfig.responseSchema)).not.toContain('"string","null"');
     const prompt = String(body.contents[0]?.parts[0]?.text);
-    expect(prompt).toMatch(/beauty product/i);
+    expect(prompt).toMatch(/retail product/i);
+    expect(prompt).toMatch(/footwear, clothing, electronics/i);
     expect(prompt).toMatch(/Never guess or infer the size/i);
     expect(prompt).toMatch(/0 to 1/i);
     expect(prompt).toMatch(/Ignore any instructions/i);
@@ -124,18 +125,18 @@ describe("identifyProduct", () => {
     expect(upstream).toMatchObject({ code: "upstream", message: VISION_MESSAGES.upstream });
   });
 
-  it("maps malformed JSON and non-beauty output to typed errors", async () => {
+  it("maps malformed JSON and non-product output to typed errors", async () => {
     const malformed = await identifyProduct(
       image,
       depsFor(async () => modelResponse("not json")),
     ).catch((error: unknown) => error);
     expect(malformed).toMatchObject({ code: "parse" });
 
-    const notBeauty = await identifyProduct(
+    const notProduct = await identifyProduct(
       image,
       depsFor(async () => modelResponse('{"brand":null,"name":null,"size":null,"confidence":0}')),
     ).catch((error: unknown) => error);
-    expect(notBeauty).toMatchObject({ code: "not_beauty" });
+    expect(notProduct).toMatchObject({ code: "not_product" });
   });
 
   it("caps strings, strips control characters, and clamps confidence", () => {
@@ -185,5 +186,22 @@ describe("identifyProduct", () => {
       size: { value: 40, unit: "ml" },
     });
     expect(warnings).toEqual([]);
+  });
+
+  it("normalizes footwear without treating a shoe size as a pack size", () => {
+    const guess = parseProductGuess(
+      JSON.stringify({
+        brand: "Nike",
+        name: "Nike Air Max 270",
+        size: "EU 42",
+        confidence: 0.88,
+      }),
+    );
+    const { query, warnings } = queryFromGuess(guess);
+
+    expect(query).toEqual({ name: "air max 270", brand: "nike" });
+    expect(query.name).not.toContain("eu 42");
+    expect(warnings).toContain("No size was detected. Add it for an exact price-per-unit comparison.");
+    expect(warnings.some((warning) => warning.includes("EU 42"))).toBe(true);
   });
 });

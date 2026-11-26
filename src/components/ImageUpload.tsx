@@ -102,9 +102,13 @@ export function ImageUpload({ disabled, onBusyChange, onDetected, onManualEntry 
           <h2 id="image-upload-heading" className="text-sm font-semibold text-neutral-900">
             Or upload a product photo
           </h2>
-          <p id="image-hint" className="mt-1 text-xs text-neutral-600">
-            {PRIVACY_NOTICE}
-          </p>
+          <div id="image-hint" className="mt-1 space-y-1">
+            <p className="text-xs text-neutral-600">{PRIVACY_NOTICE}</p>
+            <p className="text-xs text-neutral-500">
+              Identifies shoes, clothing, electronics, household items, and beauty products when the
+              brand or model text is readable.
+            </p>
+          </div>
         </div>
         {file && !busy ? (
           <button
@@ -173,7 +177,7 @@ export function ImageUpload({ disabled, onBusyChange, onDetected, onManualEntry 
 
       {busy ? (
         <p className="mt-3 text-xs text-neutral-600" role="status" aria-live="polite">
-          Resizing the photo and asking Gemini to identify the label…
+          Resizing the photo and asking Gemini to identify the product…
         </p>
       ) : null}
 

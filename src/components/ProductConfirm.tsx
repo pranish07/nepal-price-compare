@@ -105,7 +105,7 @@ export function ProductConfirm({
               <dd className="font-medium text-neutral-800">{guess.name ?? "not read"}</dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Size on label</dt>
+              <dt className="text-neutral-500">Pack size on label</dt>
               <dd className="font-medium text-neutral-800">{guess.size ?? "not read"}</dd>
             </div>
             <div>
@@ -214,7 +214,7 @@ export function ProductConfirm({
 
         <div className="sm:col-span-2">
           <fieldset>
-            <legend className="block text-sm font-medium text-neutral-800">Size</legend>
+            <legend className="block text-sm font-medium text-neutral-800">Pack size (g/ml)</legend>
             <div className="mt-1.5 flex gap-2">
               <div className="flex-1">
                 <label htmlFor="size-value" className="sr-only">
@@ -247,7 +247,8 @@ export function ProductConfirm({
               </div>
             </div>
             <p id="size-hint" className="mt-1.5 text-xs text-neutral-500">
-              Used for price per gram or millilitre. Leave blank if the seller does not list a size.
+              Used for price per gram or millilitre. Shoe and clothing sizes belong in the product
+              name. Leave blank if the seller does not list a pack size.
             </p>
             {sizeInvalid ? (
               <p id="size-error" className="mt-1 text-xs font-medium text-red-700">

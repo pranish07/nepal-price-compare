@@ -354,7 +354,7 @@ export function SearchApp() {
             </span>
             <div>
               <p className="text-sm font-semibold tracking-tight text-neutral-950">Nepal Price Compare</p>
-              <p className="text-[11px] text-neutral-500">Beauty · Nepal · NPR</p>
+              <p className="text-[11px] text-neutral-500">Products · Nepal · NPR</p>
             </div>
           </div>
           <a href="#how" className="text-sm font-medium text-neutral-700 hover:text-emerald-900">
@@ -366,7 +366,7 @@ export function SearchApp() {
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:pt-12">
         <section aria-labelledby="hero-heading">
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-800">
-            Beauty price comparison
+            Product price comparison
           </p>
           <h1
             id="hero-heading"
@@ -375,9 +375,9 @@ export function SearchApp() {
             Know the price before you buy.
           </h1>
           <p className="mt-3 max-w-2xl text-base text-neutral-700">
-            Paste a product link, type a product name, or upload a photo of the label. We compare the
-            exact product across Nepali sellers, with NPR prices, stock, delivery, and price per gram
-            or millilitre.
+            Paste a product link, type a product name, or upload a product photo. We compare the exact
+            product across Nepali sellers, with NPR prices, stock, delivery, and price per gram or
+            millilitre where pack sizes exist.
           </p>
 
           <form onSubmit={handleMainSubmit} className="card mt-6 p-4 sm:p-5">
@@ -439,7 +439,8 @@ export function SearchApp() {
 
           <p className="mt-3 text-xs text-neutral-500">
             We read public product pages and identify ourselves to each store. Results are a partial
-            survey, not a complete market comparison. V1 covers beauty products only.
+            survey, not a complete market comparison. Photos can identify many retail products;
+            built-in price adapters currently focus on beauty stores.
           </p>
         </section>
 
@@ -585,7 +586,7 @@ export function SearchApp() {
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">1 · Detect</p>
               <p className="mt-1 text-sm text-neutral-700">
                 We read the product page&apos;s structured data, or use free Gemini to identify a
-                photo of the label, then show the detected name, brand, and size for you to edit.
+                product photo, then show the detected name, brand, and pack size for you to edit.
               </p>
             </div>
             <div className="card p-4">
@@ -612,7 +613,7 @@ export function SearchApp() {
 
       <footer className="border-t border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Nepal Price Compare · beauty v1 · NPR only</p>
+          <p>Nepal Price Compare · product v1 · NPR only</p>
           <p>Not affiliated with any seller. Prices change; verify on the seller page.</p>
         </div>
       </footer>

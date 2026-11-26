@@ -62,10 +62,13 @@ This file is intentionally blunt. It describes what the current build does not p
 
 - The current UI uses Gemini, not the historical Tesseract code. Gemini can still misread labels,
   invent confidence, or return nulls; the editable confirmation step is mandatory.
+- Recognition is broad, but a successful identification does not mean a Nepali seller page exists or
+  can be parsed. Generic objects without readable brand/model text are rejected.
 - Confidence is a model-reported heuristic. Below 0.5 the UI says **Not sure, please check**, but a
   high score is not proof of product identity.
-- The prompt says not to guess sizes, but the model may still be wrong. A missing size produces a
-  warning; a wrongly reported size must be corrected by the user.
+- The prompt says not to guess sizes, but the model may still be wrong. A missing pack size produces
+  a warning; a wrongly reported size must be corrected by the user. Shoe, clothing, and other
+  non-pack sizes are not stored in the g/ml `Size` field; put them in the product name if needed.
 - The committed La Roche-Posay PNG is synthetic and the Gemini response is a recorded test double.
   They prove parsing/normalization, not real-world extraction accuracy.
 - No automated browser test exercised drag-and-drop, canvas downscaling, camera photos, or the
@@ -90,8 +93,9 @@ This file is intentionally blunt. It describes what the current build does not p
 
 ## UX and scope
 
-- V1 is beauty, Nepal, and NPR only. No accounts, price history, alerts, or efficacy/safety
-  claims.
+- V1 is Nepal and NPR only. Photo identification covers many retail products, but built-in price
+  adapters focus on beauty stores; other categories depend on the optional Serper fallback. No
+  accounts, price history, alerts, or efficacy/safety claims.
 - Top-3 cards are a convenience view; the full table is the authoritative comparison.
 - Accessibility follows semantic HTML basics (labels, roles, keyboard-operable controls). A full
   screen-reader or WCAG audit has not been performed.

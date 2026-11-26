@@ -133,8 +133,9 @@ Search pages from Serper are treated as untrusted URLs and go through the same f
 Image uploads are checked against declared MIME type **and** magic bytes, capped at 3 MB, and sent as
 inline Base64 to Gemini with the key in `x-goog-api-key`. Model output is untrusted: JSON parsing is
 guarded, strings are trimmed/capped/stripped of control characters, confidence is clamped, and React
-renders it as text. Upstream bodies are never returned to clients. The MCP tool accepts a Base64 blob
-or a path whose resolved and real paths both stay inside the project.
+renders it as text. The prompt allows general retail products but only g/ml pack sizes enter the
+canonical `Size` field. Upstream bodies are never returned to clients. The MCP tool accepts a Base64
+blob or a path whose resolved and real paths both stay inside the project.
 
 ## 7. Deployment notes
 
@@ -160,11 +161,14 @@ Gemini vision latency was not measured live; the REST call has a 20 s timeout in
 The browser downsizes the selected photo to 1024 px on the long edge and re-encodes it as JPEG q0.85.
 `/api/detect-image` checks the file, spends the per-IP and global budgets, then calls
 `identifyProduct()` with `temperature: 0`, `responseMimeType: "application/json"`, and a bounded
-legacy Schema proto `responseSchema` (uppercase types, `nullable: true`). `parseProductGuess()`
-sanitizes the JSON, and `queryFromGuess()` reuses
-`parseProductText()` and the size parser so image results and typed results share one normalization
-path. The client shows a skeleton, then an editable `ProductConfirm` card with a low-confidence
-warning; searching continues through the normal SSE pipeline.
+legacy Schema proto `responseSchema` (uppercase types, `nullable: true`). The prompt asks for any
+retail product with readable brand/model text (shoes, clothing, electronics, household goods, beauty,
+and more) and rejects non-product photos. `parseProductGuess()` sanitizes the JSON, and
+`queryFromGuess()` reuses `parseProductText()` and the size parser so image results and typed results
+share one normalization path. Shoe/clothing sizes are not coerced into the g/ml `Size` field. The
+client shows a skeleton, then an editable `ProductConfirm` card with a low-confidence warning;
+searching continues through the normal SSE pipeline. Price coverage is still limited by the store
+adapters plus optional Serper fallback, not by the identification prompt.
 
 `mcp/server.ts` registers `identify_product_image` on the official v1 SDK. It accepts exactly one of
 `image_path` or `image_base64`, uses the same core and normalization, and returns JSON text with
