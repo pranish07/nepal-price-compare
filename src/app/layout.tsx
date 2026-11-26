@@ -1,11 +1,22 @@
 import type { Metadata, Viewport } from "next";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Nepal Price Compare — skincare prices from Nepali sellers",
+  applicationName: "Nepal Price Compare",
   description:
     "Compare prices for an exact skincare product across Nepali sellers. NPR prices, stock, delivery, and price per gram or millilitre.",
   robots: { index: true, follow: true },
+  appleWebApp: {
+    capable: true,
+    title: "Nepal Price Compare",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        <PwaRegister />
       </body>
     </html>
   );
