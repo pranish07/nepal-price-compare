@@ -126,3 +126,65 @@ node parse_probe.mjs                 # proves beauty payload extraction
 # raw captures: bonjour_shop_search.html, bonjour_product.html,
 #               beauty_shop_search_dr_althea.html, beauty_product.html
 ```
+
+## 7. Gemini REST image identification (Step 0) — 2026-11-26
+
+Goal: verify that a **free** Gemini model accepts an inline image through the legacy REST
+`generateContent` endpoint and can be asked for a constrained JSON object before any application code
+was written.
+
+### Official sources checked
+
+- <https://ai.google.dev/gemini-api/docs/models.md.txt>
+- <https://aistudio.google.com/docs/models/gemini-3.5-flash-lite.md>
+- <https://aistudio.google.com/docs/pricing.md.txt>
+- <https://aistudio.google.com/docs/rate-limits.md>
+- <https://aistudio.google.com/docs/image-understanding.md?generate-content=true>
+- <https://aistudio.google.com/api-reference/generate-content/generate-content.md>
+- <https://aistudio.google.com/docs/structured-output.md?generate-content=true>
+
+### Verified from documentation (not live API calls)
+
+- `gemini-3.5-flash-lite` is listed as **Stable**; its model card says inputs include text and image,
+  free-tier input/output are "Free of charge", and "Used to improve our products" is **Yes** on the
+  free tier.
+- `generateContent` is described as the legacy endpoint in the current docs index but is still
+  documented and supported at
+  `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`.
+- Inline image data is documented for `generateContent` when the whole request is under 20 MB. REST
+  examples use `contents[].parts[].inline_data` with `mime_type` and Base64 `data`.
+- Supported image MIME types include `image/png`, `image/jpeg`, and `image/webp`. This app deliberately
+  allows only those three.
+- JSON mode is documented in the REST example as
+  `generationConfig.response_mime_type: "application/json"` plus `generationConfig.response_schema`.
+  The current API reference also documents camelCase fields `responseMimeType`/`responseJsonSchema`,
+  and JavaScript examples use `responseMimeType`/`responseSchema`.
+- `temperature` is a documented `generationConfig` field. The reference says it is silently ignored on
+  Gemini 3.6 Flash and newer; the chosen 3.5 Flash-Lite value is not in that "newer" set. The app still
+  sends `temperature: 0` because the contract requires it.
+- Rate limits are RPM, TPM (input), and RPD, applied **per project**, not per API key. RPD resets at
+  midnight Pacific time. The public docs direct users to the signed-in AI Studio rate-limit page for
+  current numeric values and state that specified limits are not guaranteed.
+
+### Chosen request shape
+
+The runtime sends camelCase `generationConfig.responseMimeType` and
+`generationConfig.responseSchema` with `temperature: 0`, matching the user-required contract and the
+current JavaScript examples. The REST examples use snake_case aliases; this ambiguity is recorded
+below rather than hidden. The model name is **never** hard-coded in runtime code: `GEMINI_MODEL` is
+required and `.env.example` documents `gemini-3.5-flash-lite`.
+
+### Assumptions and explicit non-verification
+
+- **Not verified live:** no `GEMINI_API_KEY` was available, so no Gemini request was made. Acceptance
+  of camelCase `responseSchema` by the live v1beta REST endpoint is assumed from protobuf JSON
+  field-name compatibility and the official JS examples. Unit tests assert the exact outgoing body;
+  CI does not call Gemini.
+- **Not verified live:** actual extraction quality on a La Roche-Posay label. The committed fixture is
+  a synthetic PNG and the recorded response is a saved test double, not a live model response.
+- **Not verified:** numeric free-tier RPM/RPD limits for this project. The app therefore adds its own
+  per-IP hourly limit and global daily ceiling instead of relying on published numbers.
+- **Assumed from docs:** free-tier content may be used to improve Google products. The UI shows the
+  exact required privacy notice before upload.
+- No Gemini Docs MCP server was used. Official documentation was read with HTTP tools only; the
+  runtime calls Gemini REST directly.
