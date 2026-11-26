@@ -131,9 +131,9 @@ or edits the fields in `ProductConfirm` before the normal `/api/search` pipeline
   improves typical phone photos without any server processing.
 - OCR is English-only and best-effort. It can misread fonts, packaging angles, or low-resolution
   photos; the editable confirmation step is part of the flow, not an optional extra.
-- Low-confidence or garbled output is rejected with a retake hint instead of being searched. The
-  threshold is `MIN_OCR_CONFIDENCE = 40`, plus a word-shape check, so gibberish like isolated letters
-  and symbols does not become a product query.
+- OCR output is never hard-blocked by a confidence score. Even uncertain text reaches the editable
+  confirmation step with the raw recognised text visible, so the user can correct it instead of being
+  stuck on a “too hard to read” message.
 - File type, size, readable-text, and `/api/detect` failures are shown inline. No OCR result is
   treated as verified without user confirmation.
 

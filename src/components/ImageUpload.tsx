@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ACCEPTED_IMAGE_TYPES,
   cleanOcrText,
-  isConfidentOcr,
   recognizeImage,
   validateImageFile,
   type OcrProgress,
@@ -77,11 +76,13 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
         if (mounted.current) setProgress(update);
       });
       const text = cleanOcrText(result.text);
-      if (!isConfidentOcr(result.text, result.confidence)) {
+      if (!text) {
         throw new Error(
-          "That label was too hard to read. Use bright, even light, keep the label straight, and fill the frame with the text — or type the product name instead.",
+          "No text was found in that image. Try a clearer photo or type the product name instead.",
         );
       }
+      // Even uncertain text goes to the editable confirmation step. The user
+      // can correct it there; blocking on a confidence score hid valid labels.
       if (mounted.current) setProgress({ status: "Recognizing product label", progress: 100 });
       await onRecognized(text);
     } catch (caught) {

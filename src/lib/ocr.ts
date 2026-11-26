@@ -20,9 +20,9 @@ const CORE_PATH = "https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0";
 const LANG_PATH = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int";
 const WORKER_PATH = "/tesseract/worker.min.js";
 
-/** Below this Tesseract page confidence, we ask for a better photo instead of searching noise. */
+/** Advisory threshold retained for diagnostics/tests; OCR output is no longer blocked on it. */
 export const MIN_OCR_CONFIDENCE = 40;
-const CONTRAST = 1.5;
+const CONTRAST = 1.25;
 const MIN_TARGET_WIDTH = 1600;
 const MAX_TARGET_WIDTH = 2400;
 const MAX_DIMENSION = 2600;
@@ -77,8 +77,9 @@ export function cleanOcrText(raw: string): string {
 }
 
 /**
- * Rejects confidently unreadable OCR. Tesseract can return a string even when
- * the photo is unusable; searching that string would produce a bogus query.
+ * Advisory quality signal. It is no longer used to block OCR output: a strict
+ * threshold rejected real photos even when the text was usable. The UI always
+ * shows the recognised text in an editable confirmation step instead.
  */
 export function isConfidentOcr(text: string, confidence: number): boolean {
   const cleaned = cleanOcrText(text);

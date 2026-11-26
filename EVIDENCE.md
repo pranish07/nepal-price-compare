@@ -124,7 +124,9 @@ regenerated `package-lock.json` with npm 10. Re-run `45749158192` passed every s
 The OCR commit `8ff5a33` reintroduced the same npm 11 lockfile shape and run `45751719069` failed at
 `npm ci` again. Commit `0dd26dd` regenerated the lockfile with npm 10; run `45752247031` passed
 typecheck, lint, 168 tests, and build in 33 s.
-The quality-guard commit `1fcb5fd` passed CI run `45753315051` in 42 s with 171 tests.
+The quality-guard commit `1fcb5fd` passed CI run `45753315051` in 42 s with 171 tests. After the
+non-blocking OCR fix, local `npm run typecheck`, `npm run lint`, `npm test` (171 tests), and
+`npm run build` all passed again.
 GitHub reports a non-fatal annotation that `actions/checkout@v4` and `actions/setup-node@v4` target
 Node 20 and are forced onto Node 24 by the runner; this did not affect the job.
 
@@ -218,10 +220,11 @@ A user-reported photo produced this garbled OCR instead of a product name:
 A a ge 7 8 #4 R\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N
 ```
 
-That string is now a regression test for `isConfidentOcr`. It is rejected at both low confidence
-(18) and high confidence (95), because it has only one meaningful word-like token and many isolated
-letters. The UI shows a retake hint and does not call `/api/detect`. This is a quality guard, not an
-API-key change: OCR still runs locally in the browser.
+That string remains a regression case for `isConfidentOcr`, but the helper is now advisory only:
+the strict confidence gate rejected real photos, so the UI no longer blocks on it. Any non-empty
+recognised text is passed to `/api/detect` and shown in the editable confirmation step, where the
+user can correct it. Contrast preprocessing was reduced from 1.5 to 1.25. Only completely empty OCR
+shows a retake hint. This is still an API-key-free, on-browser OCR flow.
 
 Local asset and header checks:
 
