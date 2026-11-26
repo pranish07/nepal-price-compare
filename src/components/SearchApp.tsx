@@ -152,6 +152,15 @@ export function SearchApp() {
     void runDetect(otherUrl, false);
   }
 
+  function handleManualEntry() {
+    setImageResetKey((previous) => previous + 1);
+    setImageBusy(false);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }
+
   async function handleSearch() {
     const name = editName.trim();
     if (!name) {
@@ -412,6 +421,7 @@ export function SearchApp() {
             disabled={busy}
             onBusyChange={setImageBusy}
             onRecognized={(text) => runDetect(text, true, text)}
+            onManualEntry={handleManualEntry}
           />
 
           <p className="mt-3 text-xs text-neutral-500">

@@ -6,8 +6,12 @@ import {
   MAX_OCR_CHARS,
   cleanOcrText,
   isConfidentOcr,
+  scoreOcrText,
   validateImageFile,
 } from "@/lib/ocr";
+
+const garbled = "A a ge 7 8 #4 R\\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N";
+const noisyLabel = "i> <I he i: i | on";
 
 function fakeFile(type: string, size: number): File {
   return { type, size } as File;
@@ -65,9 +69,6 @@ describe("cleanOcrText", () => {
 });
 
 describe("isConfidentOcr", () => {
-  const garbled =
-    "A a ge 7 8 #4 R\\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N";
-
   it("accepts a clear label with good confidence", () => {
     expect(isConfidentOcr("DR. ALTHEA\nMelaclear Cream 20g", 92)).toBe(true);
   });
@@ -76,9 +77,28 @@ describe("isConfidentOcr", () => {
     expect(isConfidentOcr("COSRX 100ml", 75)).toBe(true);
   });
 
-  it("rejects low-confidence output and garbled text even at high confidence", () => {
+  it("flags low-confidence output and garbled text even at high confidence", () => {
     expect(isConfidentOcr("DR. ALTHEA\nMelaclear Cream 20g", 12)).toBe(false);
     expect(isConfidentOcr(garbled, 18)).toBe(false);
     expect(isConfidentOcr(garbled, 95)).toBe(false);
+    expect(isConfidentOcr(noisyLabel, 95)).toBe(false);
+  });
+});
+
+describe("scoreOcrText", () => {
+  it("ranks a labelled product above OCR noise", () => {
+    const clear = scoreOcrText("DR. ALTHEA\nMelaclear Cream 20g", 92);
+    expect(clear).toBeGreaterThan(scoreOcrText(noisyLabel, 95));
+    expect(clear).toBeGreaterThan(scoreOcrText(garbled, 95));
+  });
+
+  it("rewards a known brand and a size", () => {
+    expect(scoreOcrText("COSRX 100ml", 80)).toBeGreaterThan(
+      scoreOcrText("random words here", 80),
+    );
+  });
+
+  it("returns negative infinity for empty text", () => {
+    expect(scoreOcrText("---\n...", 90)).toBe(Number.NEGATIVE_INFINITY);
   });
 });

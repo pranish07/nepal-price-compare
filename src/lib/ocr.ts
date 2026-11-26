@@ -14,7 +14,7 @@ export const ACCEPTED_IMAGE_TYPES = [
   "image/bmp",
 ] as const;
 
-import { parseProductText } from "./normalize";
+import { GENERIC_TOKENS, parseProductText, tokenize } from "./normalize";
 
 const CORE_PATH = "https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0";
 const LANG_PATH = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int";
@@ -74,6 +74,36 @@ export function cleanOcrText(raw: string): string {
     });
 
   return lines.join(" ").replace(/\s+/g, " ").trim().slice(0, MAX_OCR_CHARS);
+}
+
+/**
+ * Heuristic used only to choose the best of several Tesseract layout passes.
+ * It rewards brand, size and skincare-category words and penalises isolated
+ * letters and symbol runs. It never rejects an image by itself.
+ */
+export function scoreOcrText(raw: string, confidence: number): number {
+  const cleaned = cleanOcrText(raw);
+  if (!cleaned) return Number.NEGATIVE_INFINITY;
+
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const wordLike = tokens.filter((token) => /[A-Za-z]{3,}/.test(token)).length;
+  const singleLetters = tokens.filter((token) => /^[A-Za-z]$/.test(token)).length;
+  const symbolRuns = (cleaned.match(/[<>|\/\\~^#*]{2,}/g) ?? []).length;
+  const parsed = parseProductText(cleaned);
+  const categoryWords = tokenize(cleaned).filter((token) => GENERIC_TOKENS.has(token)).length;
+  const confidenceScore = Number.isFinite(confidence)
+    ? Math.max(0, Math.min(100, confidence)) * 0.05
+    : 0;
+
+  return (
+    confidenceScore +
+    wordLike * 4 +
+    (parsed.brand ? 12 : 0) +
+    (parsed.size ? 6 : 0) +
+    categoryWords * 3 -
+    singleLetters * 3 -
+    symbolRuns * 4
+  );
 }
 
 /**
@@ -179,14 +209,17 @@ async function preprocessImage(file: File): Promise<HTMLCanvasElement> {
   }
 }
 
-/** Runs Tesseract in a Web Worker in the user's browser. No image is uploaded. */
+/** Runs several Tesseract layout passes in a Web Worker in the user's browser. No image is uploaded. */
 export async function recognizeImage(
   file: File,
   onProgress?: (progress: OcrProgress) => void,
 ): Promise<OcrResult> {
   onProgress?.({ status: "Preparing image", progress: 0 });
   const image = await preprocessImage(file);
-  const { createWorker } = await import("tesseract.js");
+
+  let initializing = true;
+  let recognizing = false;
+  const { createWorker, PSM } = await import("tesseract.js");
   const worker = await createWorker("eng", 1, {
     workerPath: WORKER_PATH,
     workerBlobURL: false,
@@ -194,20 +227,49 @@ export async function recognizeImage(
     langPath: LANG_PATH,
     gzip: true,
     logger: (message) => {
+      if (recognizing) return;
       const fraction = Number.isFinite(message.progress) ? message.progress : 0;
+      // Worker setup occupies the first 15%; the layout passes own the rest.
+      const progress = initializing
+        ? Math.min(15, Math.max(0, Math.round(fraction * 15)))
+        : Math.min(100, Math.max(0, Math.round(fraction * 100)));
       onProgress?.({
         status: message.status || "Reading image",
-        progress: Math.min(100, Math.max(0, Math.round(fraction * 100))),
+        progress,
       });
     },
   });
 
   try {
-    const result = await worker.recognize(image, {}, { text: true });
-    return {
-      text: result.data.text ?? "",
-      confidence: Number.isFinite(result.data.confidence) ? result.data.confidence : 0,
-    };
+    initializing = false;
+    recognizing = true;
+    // Labels defeat Tesseract's automatic page segmentation more often than
+    // plain documents. These three modes cover block labels and sparse text.
+    const passes = [PSM.AUTO, PSM.SINGLE_BLOCK, PSM.SPARSE_TEXT];
+    let best: { text: string; confidence: number; score: number } | null = null;
+
+    for (let index = 0; index < passes.length; index += 1) {
+      onProgress?.({
+        status: "Trying label layouts",
+        progress: Math.round((index / passes.length) * 100),
+      });
+      await worker.setParameters({
+        tessedit_pageseg_mode: passes[index],
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+      });
+      const result = await worker.recognize(image, { rotateAuto: true }, { text: true });
+      const text = result.data.text ?? "";
+      const confidence = Number.isFinite(result.data.confidence) ? result.data.confidence : 0;
+      const score = scoreOcrText(text, confidence);
+      if (!best || score > best.score) best = { text, confidence, score };
+      onProgress?.({
+        status: "Trying label layouts",
+        progress: Math.round(((index + 1) / passes.length) * 100),
+      });
+    }
+
+    return best ? { text: best.text, confidence: best.confidence } : { text: "", confidence: 0 };
   } finally {
     // A failed OCR job must still release its worker; ignore cleanup errors so
     // the original failure remains the one shown to the user.

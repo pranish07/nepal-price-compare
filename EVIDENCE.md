@@ -97,7 +97,7 @@ $ npm run lint
 
 $ npm test
 Test Files  19 passed (19)
-Tests       171 passed (171)
+Tests       174 passed (174)
 Duration    ~12 s
 ```
 
@@ -210,9 +210,9 @@ POST /api/detect {"input":"DR. ALTHEA Melaclear Cream 20g"} → 200
           "size":{"value":20,"unit":"g"}},"warnings":[]}
 ```
 
-`cleanOcrText` flattening and the `/api/detect` hand-off are covered by `src/lib/ocr.test.ts`; the
-19-file / 171-test run above includes those cases. No image was uploaded to the server: the browser
-sends only the cleaned text to `/api/detect`.
+`cleanOcrText` flattening, the advisory `isConfidentOcr` check, `scoreOcrText`, and the `/api/detect`
+hand-off are covered by `src/lib/ocr.test.ts`; the 19-file / 174-test run above includes those cases.
+No image was uploaded to the server: the browser sends only the cleaned text to `/api/detect`.
 
 A user-reported photo produced this garbled OCR instead of a product name:
 
@@ -220,11 +220,19 @@ A user-reported photo produced this garbled OCR instead of a product name:
 A a ge 7 8 #4 R\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N
 ```
 
-That string remains a regression case for `isConfidentOcr`, but the helper is now advisory only:
-the strict confidence gate rejected real photos, so the UI no longer blocks on it. Any non-empty
-recognised text is passed to `/api/detect` and shown in the editable confirmation step, where the
-user can correct it. Contrast preprocessing was reduced from 1.5 to 1.25. Only completely empty OCR
-shows a retake hint. This is still an API-key-free, on-browser OCR flow.
+That string remains a regression case for `isConfidentOcr`. A second photo produced this even
+shorter noise:
+
+```text
+i> <I he i: i | on
+```
+
+Neither string is silently trusted now. `recognizeImage` runs `PSM.AUTO`, `PSM.SINGLE_BLOCK`, and
+`PSM.SPARSE_TEXT` with auto-rotation on the same preprocessed canvas and keeps the highest
+`scoreOcrText` result. If the chosen text still fails the advisory `isConfidentOcr` check, the upload
+card shows it in an editable box with **Use this text** and **Type product name instead**; this is a
+correction path, not a hard rejection. Only completely empty OCR shows a retake hint. Contrast
+preprocessing was reduced from 1.5 to 1.25. This remains an API-key-free, on-browser OCR flow.
 
 Local asset and header checks:
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ACCEPTED_IMAGE_TYPES,
   cleanOcrText,
+  isConfidentOcr,
   recognizeImage,
   validateImageFile,
   type OcrProgress,
@@ -14,6 +15,8 @@ interface ImageUploadProps {
   onBusyChange: (busy: boolean) => void;
   /** Receives flattened OCR text; the parent sends it through /api/detect. */
   onRecognized: (text: string) => Promise<void> | void;
+  /** Moves focus to the ordinary name/link input when OCR is unclear. */
+  onManualEntry: () => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -21,17 +24,20 @@ const STATUS_LABELS: Record<string, string> = {
   "initializing tesseract": "Preparing OCR",
   "loading language traineddata": "Loading language data",
   "recognizing text": "Recognizing product label",
+  "trying label layouts": "Trying label layouts",
 };
 
 function progressLabel(status: string): string {
   return STATUS_LABELS[status.toLowerCase()] ?? (status || "Reading image");
 }
 
-export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploadProps) {
+export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntry }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState<OcrProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editableOcr, setEditableOcr] = useState<string | null>(null);
+  const [editedOcr, setEditedOcr] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const mounted = useRef(true);
@@ -61,10 +67,14 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
       setPreviewUrl(null);
       setProgress(null);
       setError(validation);
+      setEditableOcr(null);
+      setEditedOcr("");
       return;
     }
 
     setError(null);
+    setEditableOcr(null);
+    setEditedOcr("");
     setFile(candidate);
     setPreviewUrl(URL.createObjectURL(candidate));
     setProgress({ status: "Preparing image", progress: 0 });
@@ -81,15 +91,46 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
           "No text was found in that image. Try a clearer photo or type the product name instead.",
         );
       }
-      // Even uncertain text goes to the editable confirmation step. The user
-      // can correct it there; blocking on a confidence score hid valid labels.
-      if (mounted.current) setProgress({ status: "Recognizing product label", progress: 100 });
-      await onRecognized(text);
+      if (!mounted.current) return;
+      setProgress({ status: "Recognizing product label", progress: 100 });
+
+      if (isConfidentOcr(result.text, result.confidence)) {
+        await onRecognized(text);
+      } else {
+        // Not a rejection: the exact OCR text stays visible and editable.
+        setProgress(null);
+        setEditableOcr(text);
+        setEditedOcr(text);
+      }
     } catch (caught) {
       if (!mounted.current) return;
       const message = caught instanceof Error ? caught.message : "That image could not be read.";
       setError(message);
       setProgress(null);
+    } finally {
+      if (mounted.current) {
+        setBusy(false);
+        onBusyChange(false);
+      }
+    }
+  }
+
+  async function submitEditedOcr() {
+    const value = editedOcr.trim();
+    if (!value) {
+      setError("Enter the product name or corrected OCR text.");
+      return;
+    }
+
+    setError(null);
+    setEditableOcr(null);
+    setBusy(true);
+    onBusyChange(true);
+    try {
+      await onRecognized(value);
+    } catch (caught) {
+      if (!mounted.current) return;
+      setError(caught instanceof Error ? caught.message : "That text could not be detected.");
     } finally {
       if (mounted.current) {
         setBusy(false);
@@ -104,6 +145,8 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
     setPreviewUrl(null);
     setProgress(null);
     setError(null);
+    setEditableOcr(null);
+    setEditedOcr("");
   }
 
   return (
@@ -114,8 +157,8 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
             Or upload a product photo
           </h2>
           <p id="image-hint" className="mt-1 text-xs text-neutral-600">
-            OCR runs in your browser with Tesseract.js. The photo is not uploaded. You confirm the
-            detected name before searching.
+            OCR runs in your browser with Tesseract.js. The photo is not uploaded. If the text looks
+            uncertain, you can edit it before searching.
           </p>
         </div>
         {file && !busy ? (
@@ -127,7 +170,13 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
 
       <label
         htmlFor="product-image"
-        aria-describedby={error ? "image-error image-hint" : "image-hint"}
+        aria-describedby={
+          error
+            ? "image-error image-hint"
+            : editableOcr !== null
+              ? "image-ocr-notice image-hint"
+              : "image-hint"
+        }
         onDragOver={(event) => {
           event.preventDefault();
           if (!inactive) setDragActive(true);
@@ -197,6 +246,38 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
               className="h-full rounded-full bg-emerald-700 transition-[width] duration-200"
               style={{ width: `${progress.progress}%` }}
             />
+          </div>
+        </div>
+      ) : null}
+
+      {editableOcr !== null && !error && !busy ? (
+        <div
+          id="image-ocr-notice"
+          role="status"
+          className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
+        >
+          <p className="text-sm font-semibold text-amber-900">Check what OCR read</p>
+          <p className="mt-1 text-xs text-amber-800">
+            The text looks uncertain. Edit it below and continue, or type the product name in the
+            search box.
+          </p>
+          <label htmlFor="ocr-edit" className="mt-2 block text-xs font-medium text-amber-900">
+            Recognized text
+          </label>
+          <textarea
+            id="ocr-edit"
+            className="input mt-1 min-h-20 resize-y"
+            value={editedOcr}
+            onChange={(event) => setEditedOcr(event.target.value)}
+            spellCheck={false}
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" className="btn-primary" onClick={() => void submitEditedOcr()}>
+              Use this text
+            </button>
+            <button type="button" className="btn-secondary" onClick={onManualEntry}>
+              Type product name instead
+            </button>
           </div>
         </div>
       ) : null}

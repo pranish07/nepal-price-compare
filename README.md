@@ -116,9 +116,10 @@ Returns version, uptime, `serperConfigured`, `kvConfigured`, `cacheMode`, and ti
 ## Image upload (OCR)
 
 The home page accepts JPG, PNG, WebP, GIF, or BMP images up to 8 MB. OCR runs **in the browser** with
-[Tesseract.js](https://tesseract.projectnaptha.com/): the photo is never uploaded. The flattened text
-is posted to `/api/detect`, which reuses the existing name/brand/size parser. The user then confirms
-or edits the fields in `ProductConfirm` before the normal `/api/search` pipeline starts.
+[Tesseract.js](https://tesseract.projectnaptha.com/): the photo is never uploaded. Three page-layout
+modes are tried and the best-looking result is chosen; the flattened text is posted to `/api/detect`,
+which reuses the existing name/brand/size parser. The user then confirms or edits the fields in
+`ProductConfirm` before the normal `/api/search` pipeline starts.
 
 - Tesseract.js is dynamically imported only when an image is chosen, so the initial page load stays
   small.
@@ -127,13 +128,13 @@ or edits the fields in `ProductConfirm` before the normal `/api/search` pipeline
   new environment variable.
 - The CSP allows the jsDelivr worker assets, `wasm-unsafe-eval`, blob image previews, and the local
   Web Worker. `workerBlobURL: false` keeps the worker at a same-origin URL.
-- Before OCR, the browser upscales small images and applies grayscale + contrast in a canvas. This
-  improves typical phone photos without any server processing.
+- Before OCR, the browser upscales small images and applies grayscale + contrast in a canvas. Tesseract
+  then runs automatic, single-block, and sparse-text passes with auto-rotation; a small scoring
+  function prefers brand, size, and skincare words and penalises isolated letters and symbol runs.
+- If the result still looks uncertain, the raw text appears in an editable box with a **Use this text**
+  button and a direct **Type product name instead** shortcut. It is not rejected or hidden.
 - OCR is English-only and best-effort. It can misread fonts, packaging angles, or low-resolution
   photos; the editable confirmation step is part of the flow, not an optional extra.
-- OCR output is never hard-blocked by a confidence score. Even uncertain text reaches the editable
-  confirmation step with the raw recognised text visible, so the user can correct it instead of being
-  stuck on a “too hard to read” message.
 - File type, size, readable-text, and `/api/detect` failures are shown inline. No OCR result is
   treated as verified without user confirmation.
 
