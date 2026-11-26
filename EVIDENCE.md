@@ -97,8 +97,8 @@ $ npm run lint
 
 $ npm test
 Test Files  19 passed (19)
-Tests       168 passed (168)
-Duration    ~8 s
+Tests       171 passed (171)
+Duration    ~12 s
 ```
 
 Vitest prints a non-fatal config-loader warning about `vitest.config.ts` ESM syntax. The tests pass.
@@ -208,8 +208,19 @@ POST /api/detect {"input":"DR. ALTHEA Melaclear Cream 20g"} → 200
 ```
 
 `cleanOcrText` flattening and the `/api/detect` hand-off are covered by `src/lib/ocr.test.ts`; the
-19-file / 168-test run above includes those cases. No image was uploaded to the server: the browser
+19-file / 171-test run above includes those cases. No image was uploaded to the server: the browser
 sends only the cleaned text to `/api/detect`.
+
+A user-reported photo produced this garbled OCR instead of a product name:
+
+```text
+A a ge 7 8 #4 R\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N
+```
+
+That string is now a regression test for `isConfidentOcr`. It is rejected at both low confidence
+(18) and high confidence (95), because it has only one meaningful word-like token and many isolated
+letters. The UI shows a retake hint and does not call `/api/detect`. This is a quality guard, not an
+API-key change: OCR still runs locally in the browser.
 
 Local asset and header checks:
 

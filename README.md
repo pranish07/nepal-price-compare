@@ -36,7 +36,7 @@ adapters and says so in the coverage panel. No credit is spent.
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm run lint` | ESLint flat config (Next.js core-web-vitals + TypeScript) |
-| `npm test` | Vitest, 168 tests including real-HTML contract tests |
+| `npm test` | Vitest, 171 tests including real-HTML contract tests |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run verify:serper` | Optional live Serper probe (spends credits; see below) |
 
@@ -127,8 +127,13 @@ or edits the fields in `ProductConfirm` before the normal `/api/search` pipeline
   new environment variable.
 - The CSP allows the jsDelivr worker assets, `wasm-unsafe-eval`, blob image previews, and the local
   Web Worker. `workerBlobURL: false` keeps the worker at a same-origin URL.
+- Before OCR, the browser upscales small images and applies grayscale + contrast in a canvas. This
+  improves typical phone photos without any server processing.
 - OCR is English-only and best-effort. It can misread fonts, packaging angles, or low-resolution
   photos; the editable confirmation step is part of the flow, not an optional extra.
+- Low-confidence or garbled output is rejected with a retake hint instead of being searched. The
+  threshold is `MIN_OCR_CONFIDENCE = 40`, plus a word-shape check, so gibberish like isolated letters
+  and symbols does not become a product query.
 - File type, size, readable-text, and `/api/detect` failures are shown inline. No OCR result is
   treated as verified without user confirmation.
 

@@ -5,6 +5,7 @@ import {
   MAX_IMAGE_BYTES,
   MAX_OCR_CHARS,
   cleanOcrText,
+  isConfidentOcr,
   validateImageFile,
 } from "@/lib/ocr";
 
@@ -60,5 +61,24 @@ describe("cleanOcrText", () => {
       brand: "Dr. Althea",
       size: { value: 20, unit: "g" },
     });
+  });
+});
+
+describe("isConfidentOcr", () => {
+  const garbled =
+    "A a ge 7 8 #4 R\\ Pl Je wo PF, 3 Pre 4&8 ~~ AN bh ; J A A Py DOLPO > —N";
+
+  it("accepts a clear label with good confidence", () => {
+    expect(isConfidentOcr("DR. ALTHEA\nMelaclear Cream 20g", 92)).toBe(true);
+  });
+
+  it("accepts a short known-brand title", () => {
+    expect(isConfidentOcr("COSRX 100ml", 75)).toBe(true);
+  });
+
+  it("rejects low-confidence output and garbled text even at high confidence", () => {
+    expect(isConfidentOcr("DR. ALTHEA\nMelaclear Cream 20g", 12)).toBe(false);
+    expect(isConfidentOcr(garbled, 18)).toBe(false);
+    expect(isConfidentOcr(garbled, 95)).toBe(false);
   });
 });

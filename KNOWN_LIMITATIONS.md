@@ -52,6 +52,10 @@ This file is intentionally blunt. It describes what the current build does not p
 - OCR is English-only (`eng`). Nepali-language labels are not recognised.
 - Tesseract.js can misread small text, stylised fonts, glare, or angled photos. The confirmation
   step is required; OCR output is never treated as a verified product identity.
+- The low-confidence guard can reject an unusual but valid label. In that case the user should type
+  the product name manually; manual entry is always available.
+- Canvas preprocessing helps small or low-contrast labels but cannot recover text that is out of
+  focus, heavily rotated, or not visible in the photo.
 - The first OCR loads the WASM core and language data from jsDelivr (about several MB) and relies on
   browser caching thereafter. This uses no paid API but does require network access.
 - File validation accepts common browser image types up to 8 MB. HEIC and unsupported formats are

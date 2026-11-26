@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ACCEPTED_IMAGE_TYPES,
   cleanOcrText,
+  isConfidentOcr,
   recognizeImage,
   validateImageFile,
   type OcrProgress,
@@ -76,8 +77,10 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
         if (mounted.current) setProgress(update);
       });
       const text = cleanOcrText(result.text);
-      if (!text) {
-        throw new Error("No readable text was found. Try a sharper, straight-on photo of the label.");
+      if (!isConfidentOcr(result.text, result.confidence)) {
+        throw new Error(
+          "That label was too hard to read. Use bright, even light, keep the label straight, and fill the frame with the text — or type the product name instead.",
+        );
       }
       if (mounted.current) setProgress({ status: "Recognizing product label", progress: 100 });
       await onRecognized(text);
@@ -161,7 +164,9 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized }: ImageUploa
           <span className="block text-sm font-medium text-neutral-800">
             {busy ? "Reading image…" : "Choose an image or drop it here"}
           </span>
-          <span className="block text-xs text-neutral-500">JPG, PNG, WebP, GIF, or BMP · max 8 MB</span>
+          <span className="block text-xs text-neutral-500">
+            JPG, PNG, WebP, GIF, or BMP · max 8 MB · bright light, straight-on, text fills frame
+          </span>
         </span>
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- local object URL has no fixed Next.js allowlist
