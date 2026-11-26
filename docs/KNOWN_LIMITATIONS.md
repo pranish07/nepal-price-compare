@@ -96,6 +96,12 @@ This file is intentionally blunt. It describes what the current build does not p
 - Accessibility follows semantic HTML basics (labels, roles, keyboard-operable controls). A full
   screen-reader or WCAG audit has not been performed.
 - No automated browser test verifies visual layout on real devices.
+- The installable PWA caches only the interface shell. Search results, detected products, and photo
+  identification still require a network connection.
+- There is no custom install prompt, push notification, background sync, or offline price history.
+  Chrome/Edge show the native install affordance; iOS uses **Share → Add to Home Screen**.
+- The service worker is registered only in production builds, so `next dev` does not exercise it.
+  No automated browser test has verified installation or offline launch on a real device.
 
 ## Operational
 

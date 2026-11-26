@@ -29,6 +29,7 @@ V1 is deliberately narrow:
 | Trust | Every price carries a source URL and `fetchedAt`. Missing values are `null` and render as "not listed". |
 | Free Gemini tier | Image identification is optional, budgeted, and never a paid API. Free-tier data may be used to improve Google products, so the exact privacy notice is shown before upload. |
 | Untrusted model output | A photo guess is normalized with the existing parser and always confirmed by a human before search. |
+| Installable app shell | A manifest and small service worker make the UI installable with no new dependency; API/SSE/photo requests are never cached. Offline search is an explicit non-goal. |
 
 ## 3. Assumptions (and how each is verified)
 
@@ -294,3 +295,4 @@ Mobile-first single page:
 | M5 | `/api/search` SSE, cache, rate limit, SSRF tests |
 | M6 | UI, README, `.env.example`, Vercel notes, CI |
 | M7 | `src/lib/vision/*`, `/api/detect-image`, MCP tool, `SPIKES.md` §7, fake-fetch tests |
+| M8 | PWA manifest, vector logo/icons, production-only app-shell service worker, manifest/icon tests |

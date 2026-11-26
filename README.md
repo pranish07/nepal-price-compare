@@ -180,6 +180,25 @@ before sending the image to Google.
 The earlier on-device Tesseract OCR code remains in the repository as historical implementation, but
 the current UI uses Gemini.
 
+## Installable PWA
+
+The app ships with a web app manifest (`src/app/manifest.ts`), a hand-built vector logo
+(`src/app/icon.svg`), PNG icons for Android and iOS, and a small app-shell service worker
+(`public/sw.js`). `PwaRegister` registers it only in production builds.
+
+- Install from Chrome/Edge's address-bar install icon, or iOS **Share → Add to Home Screen**.
+- Standalone display, portrait orientation, teal theme color, and 192/512 icons including a maskable
+  icon.
+- The service worker precaches the home shell and icons, uses network-first for navigations, and
+  cache-first for same-origin scripts, styles, images, fonts, and the manifest. API routes, SSE
+  streams, text detection, and photo uploads are **never** cached.
+- Offline support is limited to the cached UI shell; searches and photo identification still need a
+  network connection. There are no push notifications or background sync.
+- `/sw.js` is served with `no-cache`, a strict same-origin CSP, and
+  `Content-Type: application/javascript`.
+- Check locally with `npm run build && npm start`, then open http://localhost:3000. Registration is
+  skipped in `next dev` so stale chunks never hide code changes.
+
 ## Local MCP server
 
 `npm run mcp` builds `mcp/server.ts` to `.mcp-build/` and starts a local stdio server using the
@@ -284,7 +303,9 @@ optional.
 
 ```
 src/app/api/{detect,detect-image,search,health}/route.ts  HTTP + SSE entry points
-src/components/                                           client UI (incl. ImageUpload)
+src/app/{manifest.ts,icon.svg}                             PWA manifest and vector logo
+src/components/                                           client UI (incl. ImageUpload, PwaRegister)
+public/{sw.js,icon-*.png,apple-touch-icon.png}             service worker and PWA icons
 src/lib/vision/{image,identifyProduct,client}.ts          image guards, Gemini core, browser resize
 src/lib/ocr.ts                                            historical on-device OCR (not used by UI)
 public/tesseract/                                         historical self-hosted Tesseract assets
@@ -323,6 +344,9 @@ Further reading: `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.m
 - **Verified live on 2026-11-26:** a Gemini REST request with an inline image returned HTTP 200 using
   camelCase `responseSchema` in the legacy Schema proto shape. The initial JSON Schema shape returned
   400 and was fixed; details are in `docs/SPIKES.md` §7 and decision D30.
+- **Verified in a local production build on 2026-11-26:** `/` links the manifest, icon, and Apple touch
+  icon; `/manifest.webmanifest` lists all PNG sizes; `/sw.js` returns 200 with `no-cache` and a strict
+  same-origin CSP. Real-device installation and offline launch were not browser-tested.
 - **Not verified live:** extraction quality on a real product photo.
 - **Not publicly verified:** numeric free-tier RPM/RPD limits require signing in to AI Studio, so the
   app enforces its own per-IP and global ceilings.

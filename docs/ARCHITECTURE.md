@@ -42,7 +42,8 @@ an error.
 | Area | Files | Responsibility |
 | --- | --- | --- |
 | HTTP entry points | `src/app/api/{detect,detect-image,search,health}/route.ts` | Validate input, rate limit, identify photos, stream SSE, map errors to status codes. |
-| Client | `src/components/` | Image upload/downscale, product confirmation, live results, top-3 cards, sortable table, source status, empty/error states. |
+| Client | `src/components/` | Image upload/downscale, product confirmation, live results, top-3 cards, sortable table, source status, PWA registration, empty/error states. |
+| PWA | `src/app/{manifest.ts,icon.svg}`, `public/{sw.js,icon-*.png,apple-touch-icon.png}` | Install metadata, vector logo and icon set, small app-shell service worker. |
 | Vision | `src/lib/vision/{image,identifyProduct,client}.ts` | MIME/magic-byte guards, strict Base64, Gemini REST call, untrusted-output sanitization, browser resize. |
 | MCP | `mcp/{server,cli}.ts`, `tsconfig.mcp.json` | Local stdio tool wrapping the same vision core; compiled to CommonJS by `npm run mcp`. |
 | Orchestration | `src/lib/pipeline.ts` | Cache lookup, single-flight, parallel source execution, event emission, budgets, final result. |
@@ -169,3 +170,16 @@ warning; searching continues through the normal SSE pipeline.
 `image_path` or `image_base64`, uses the same core and normalization, and returns JSON text with
 `guess` and `query`. It is a local/dev tool only; there is no `search_prices` tool because that would
 spend Serper credits by default. No live Gemini call is made by tests or CI.
+
+## 10. Installable PWA
+
+`src/app/manifest.ts` generates `/manifest.webmanifest`, and `src/app/icon.svg` is the source for the
+192/512/maskable PNG icons and the iOS touch icon. `PwaRegister` registers `public/sw.js` only in a
+production build so development never serves stale chunks from cache.
+
+The service worker precaches the home shell and icons, uses network-first for navigations with a
+cached-home fallback, and cache-first for same-origin scripts, styles, images, fonts, and the
+manifest. It returns early for every `/api/` path, so search SSE, text detection, and photo uploads
+are never cached. `next.config.ts` gives `/sw.js` a strict same-origin CSP, `application/javascript`
+content type, and `no-cache` headers. There is no push notification or background sync layer; offline
+support is limited to the cached interface shell.

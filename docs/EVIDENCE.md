@@ -271,6 +271,23 @@ GET https://nepal-price-compare.vercel.app/api/health → status ok, serperConfi
     kvConfigured false, cacheMode memory
 ```
 
+## M8 — Installable PWA
+
+Local production build: `npm run build && npm run start -- -p 3101`.
+
+```text
+GET / → <link rel="manifest" href="/manifest.webmanifest"/>
+        <link rel="icon" href="/icon.svg"/>
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+GET /manifest.webmanifest → 200; name, standalone display, 192/512/maskable PNG icons
+GET /sw.js → 200; Content-Type application/javascript; Cache-Control no-cache, no-store,
+    must-revalidate; Service-Worker-Allowed /; CSP default-src 'self'; script-src 'self'
+npm test → 24 files, 201 tests passed
+```
+
+The manifest/icon test checks that every referenced PNG exists and has the declared pixel size. Real
+device installation and offline launch were not browser-tested.
+
 ## Not proven
 
 - Serper `num > 10`, daily ceiling behavior with real Upstash, and GitHub Actions execution.
