@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { CoverageLine } from "@/components/CoverageLine";
 import { DebugPanel } from "@/components/DebugPanel";
+import { ImageUpload } from "@/components/ImageUpload";
 import { ListingTable } from "@/components/ListingTable";
 import { CITY_OPTIONS, ProductConfirm } from "@/components/ProductConfirm";
 import { SourceStatus } from "@/components/SourceStatus";
@@ -56,6 +57,9 @@ export function SearchApp() {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [recognizedText, setRecognizedText] = useState<string | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageResetKey, setImageResetKey] = useState(0);
   const [sort, setSort] = useState<SortState>({ key: "rank", dir: "desc" });
   const [otherUrl, setOtherUrl] = useState("");
   const [otherBusy, setOtherBusy] = useState(false);
@@ -64,7 +68,7 @@ export function SearchApp() {
   const confirmRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const busy = phase === "detecting" || phase === "searching" || otherBusy;
+  const busy = phase === "detecting" || phase === "searching" || otherBusy || imageBusy;
 
   const confirmWarnings = useMemo(() => {
     if (!detected) return [];
@@ -96,13 +100,14 @@ export function SearchApp() {
     });
   }
 
-  async function runDetect(value: string, isMain: boolean) {
+  async function runDetect(value: string, isMain: boolean, recognizedFromImage?: string) {
     const trimmed = value.trim();
     if (!trimmed) return;
 
     setError(null);
     if (isMain) {
       setPhase("detecting");
+      setRecognizedText(recognizedFromImage ?? null);
       setDetected(null);
       setResult(null);
       setListings([]);
@@ -293,6 +298,9 @@ export function SearchApp() {
     setResult(null);
     setError(null);
     setStatusMessage("");
+    setRecognizedText(null);
+    setImageBusy(false);
+    setImageResetKey((previous) => previous + 1);
     setOtherUrl("");
     requestAnimationFrame(() => inputRef.current?.focus());
   }
@@ -345,8 +353,9 @@ export function SearchApp() {
             Know the price before you buy.
           </h1>
           <p className="mt-3 max-w-2xl text-base text-neutral-700">
-            Paste a product link or type a product name. We compare the exact product across Nepali
-            sellers, with NPR prices, stock, delivery, and price per gram or millilitre.
+            Paste a product link, type a product name, or upload a photo of the label. We compare the
+            exact product across Nepali sellers, with NPR prices, stock, delivery, and price per gram
+            or millilitre.
           </p>
 
           <form onSubmit={handleMainSubmit} className="card mt-6 p-4 sm:p-5">
@@ -398,6 +407,13 @@ export function SearchApp() {
             </div>
           </form>
 
+          <ImageUpload
+            key={imageResetKey}
+            disabled={busy}
+            onBusyChange={setImageBusy}
+            onRecognized={(text) => runDetect(text, true, text)}
+          />
+
           <p className="mt-3 text-xs text-neutral-500">
             We read public product pages and identify ourselves to each store. Results are a partial
             survey, not a complete market comparison. V1 covers skincare only.
@@ -438,6 +454,7 @@ export function SearchApp() {
               sizeUnit={editSizeUnit}
               city={editCity}
               warnings={confirmWarnings}
+              recognizedText={recognizedText}
               busy={phase === "searching"}
               onNameChange={setEditName}
               onBrandChange={setEditBrand}
@@ -544,8 +561,8 @@ export function SearchApp() {
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">1 · Detect</p>
               <p className="mt-1 text-sm text-neutral-700">
-                We read the product page&apos;s structured data, then show the detected name, brand,
-                and size for you to edit.
+                We read the product page&apos;s structured data or run free OCR on your photo in the
+                browser, then show the detected name, brand, and size for you to edit.
               </p>
             </div>
             <div className="card p-4">
@@ -671,6 +688,7 @@ function EmptyState() {
       <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-700">
         <li>Check the size. A 50 ml listing is not the same as a 20 g listing.</li>
         <li>Paste the product page from a store you already trust.</li>
+        <li>Upload a clear, straight-on photo of the product label.</li>
         <li>Remove the brand or shorten the product name if the store writes it differently.</li>
       </ul>
     </section>

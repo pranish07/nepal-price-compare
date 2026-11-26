@@ -10,6 +10,7 @@ const eslintConfig = [
       ".next/**",
       "coverage/**",
       "spikes/**",
+      "public/tesseract/**",
       "next-env.d.ts",
     ],
   },

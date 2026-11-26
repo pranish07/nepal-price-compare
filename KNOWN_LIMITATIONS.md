@@ -47,6 +47,18 @@ This file is intentionally blunt. It describes what the current build does not p
   which may spend credits again, though it is single-flighted per key.
 - The daily ceiling fails closed for Serper discovery only; adapter results still stream.
 
+## Image OCR
+
+- OCR is English-only (`eng`). Nepali-language labels are not recognised.
+- Tesseract.js can misread small text, stylised fonts, glare, or angled photos. The confirmation
+  step is required; OCR output is never treated as a verified product identity.
+- The first OCR loads the WASM core and language data from jsDelivr (about several MB) and relies on
+  browser caching thereafter. This uses no paid API but does require network access.
+- File validation accepts common browser image types up to 8 MB. HEIC and unsupported formats are
+  rejected rather than silently transcodes.
+- The browser worker/CSP path was built and the assets/header were checked locally, but no automated
+  browser test exercised drag-and-drop, IndexedDB caching, or a real camera photo.
+
 ## Security boundary
 
 - URLs are validated by resolving DNS and pinning the connection to a checked IP. This greatly
@@ -58,8 +70,8 @@ This file is intentionally blunt. It describes what the current build does not p
 
 ## UX and scope
 
-- V1 is skincare/beauty, Nepal, and NPR only. No accounts, price history, image upload, alerts, or
-  efficacy/safety claims.
+- V1 is skincare/beauty, Nepal, and NPR only. No accounts, price history, alerts, or efficacy/safety
+  claims.
 - Top-3 cards are a convenience view; the full table is the authoritative comparison.
 - Accessibility follows semantic HTML basics (labels, roles, keyboard-operable controls). A full
   screen-reader or WCAG audit has not been performed.

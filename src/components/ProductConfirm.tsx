@@ -26,6 +26,7 @@ interface ProductConfirmProps {
   sizeUnit: "g" | "ml";
   city: string;
   warnings: string[];
+  recognizedText?: string | null;
   busy: boolean;
   onNameChange: (value: string) => void;
   onBrandChange: (value: string) => void;
@@ -44,6 +45,7 @@ export function ProductConfirm({
   sizeUnit,
   city,
   warnings,
+  recognizedText,
   busy,
   onNameChange,
   onBrandChange,
@@ -83,6 +85,18 @@ export function ProductConfirm({
           </a>
         ) : null}
       </div>
+
+      {recognizedText ? (
+        <details className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
+          <summary className="cursor-pointer font-medium text-neutral-800">
+            Text recognized from image
+          </summary>
+          <p className="mt-2 text-xs text-neutral-600">
+            OCR can misread labels. Check the editable fields below before searching.
+          </p>
+          <p className="mt-2 whitespace-pre-wrap break-words text-neutral-800">{recognizedText}</p>
+        </details>
+      ) : null}
 
       {preview ? (
         <div className="mt-4 flex gap-4 rounded-xl border border-neutral-200 bg-neutral-50 p-3">

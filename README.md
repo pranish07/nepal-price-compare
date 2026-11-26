@@ -1,8 +1,10 @@
 # Nepal Price Compare
 
-Compare skincare products across Nepali sellers. Paste a product URL or type a product name, confirm
-the detected product, and get a streamed comparison with NPR prices, stock, location, delivery,
-price per unit, and **Cheapest / Best value / Closest** picks.
+**Live demo:** [https://nepal-price-compare.vercel.app/](https://nepal-price-compare.vercel.app/)
+
+Compare skincare products across Nepali sellers. Paste a product URL, type a product name, or upload
+a photo of the label. Confirm the detected product, then get a streamed comparison with NPR prices,
+stock, location, delivery, price per unit, and **Cheapest / Best value / Closest** picks.
 
 V1 is intentionally narrow: skincare/beauty, Nepal, NPR, no accounts, no price history, no complete
 market claims. Results are always labelled as a partial survey.
@@ -19,7 +21,8 @@ cp .env.example .env.local   # optional; the app runs without any keys
 npm run dev
 ```
 
-Open http://localhost:3000. Try `Dr. Althea Melaclear Cream 20g` with city `Kathmandu`.
+Open http://localhost:3000. Try `Dr. Althea Melaclear Cream 20g` with city `Kathmandu`, or upload a
+clear photo of a product label and confirm the detected name before searching.
 
 Serper discovery is optional. Without `SERPER_API_KEY` the app uses only its built-in store
 adapters and says so in the coverage panel. No credit is spent.
@@ -33,7 +36,7 @@ adapters and says so in the coverage panel. No credit is spent.
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm run lint` | ESLint flat config (Next.js core-web-vitals + TypeScript) |
-| `npm test` | Vitest, 162 tests including real-HTML contract tests |
+| `npm test` | Vitest, 168 tests including real-HTML contract tests |
 | `npm run test:watch` | Vitest watch mode |
 | `npm run verify:serper` | Optional live Serper probe (spends credits; see below) |
 
@@ -110,6 +113,25 @@ on `done`.
 
 Returns version, uptime, `serperConfigured`, `kvConfigured`, `cacheMode`, and timestamp.
 
+## Image upload (OCR)
+
+The home page accepts JPG, PNG, WebP, GIF, or BMP images up to 8 MB. OCR runs **in the browser** with
+[Tesseract.js](https://tesseract.projectnaptha.com/): the photo is never uploaded. The flattened text
+is posted to `/api/detect`, which reuses the existing name/brand/size parser. The user then confirms
+or edits the fields in `ProductConfirm` before the normal `/api/search` pipeline starts.
+
+- Tesseract.js is dynamically imported only when an image is chosen, so the initial page load stays
+  small.
+- `public/tesseract/worker.min.js` is self-hosted. The WASM core and English language data are
+  fetched from jsDelivr on first use and cached by the browser. There is no paid vision API and no
+  new environment variable.
+- The CSP allows the jsDelivr worker assets, `wasm-unsafe-eval`, blob image previews, and the local
+  Web Worker. `workerBlobURL: false` keeps the worker at a same-origin URL.
+- OCR is English-only and best-effort. It can misread fonts, packaging angles, or low-resolution
+  photos; the editable confirmation step is part of the flow, not an optional extra.
+- File type, size, readable-text, and `/api/detect` failures are shown inline. No OCR result is
+  treated as verified without user confirmation.
+
 ## Credit budget
 
 Serper is discovery only — it never supplies prices. Each call costs one credit and is charged to
@@ -182,7 +204,9 @@ optional.
 
 ```
 src/app/api/{detect,search,health}/route.ts   HTTP + SSE entry points
-src/components/                               client UI
+src/components/                               client UI (incl. ImageUpload)
+src/lib/ocr.ts                                browser OCR wrapper + text cleanup
+public/tesseract/                             self-hosted Tesseract worker + license
 src/lib/adapters/                             store-specific parsers + resilience
 src/lib/extract/                              generic product/JSON-LD/RSC extraction
 src/lib/{match,rank,sort,normalize,size,price}.ts  pure comparison logic
@@ -199,6 +223,7 @@ Further reading: `ARCHITECTURE.md`, `DATA_MODEL.md`, `DECISIONS.md`, `KNOWN_LIMI
 ## Honesty notes
 
 - Every number comes from a source page and carries a URL plus `fetchedAt`.
+- Image OCR is a convenience for entering a product name, not proof of product identity.
 - Missing data is displayed as "not listed", never inferred from a domain or a competitor.
 - Different sizes are kept but flagged and excluded from Cheapest.
 - We do not claim complete coverage, authenticity, or product efficacy. Verify on the seller site.

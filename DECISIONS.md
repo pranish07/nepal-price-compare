@@ -25,6 +25,7 @@ Implementation decisions that refined `DESIGN.md`. Status is current unless mark
 | D19 | CI runs `npm ci`, typecheck, lint, test, then build on Node 22. | Catch type, style, behavior, and bundling regressions independently. | One `verify` job; no secrets required. Serper probe is deliberately manual because it spends credits. |
 | D20 | Add `scripts/verify-serper.mjs` as a manual, non-secret-printing probe. | The README promises a way to check response shape and `num > 10`. | Running it without a key exits 0 and spends nothing; with a key it spends credits and prints only shape metadata. |
 | D21 | Store discovery uses the brand alone when known, otherwise the most distinctive name token. | Live smoke test showed full detected names return irrelevant/zero results: Bonjour `Dr. Althea Melaclear Cream` returned 6 unrelated cards, while `dr althea` returned the target; Beauty returned 0 vs 17 payload products. | Adapters fetch broader candidate sets; exact-product matching still happens locally before display. Added `searchText` tests. |
+| D22 | Image upload uses free on-device Tesseract.js OCR, then feeds cleaned text through `/api/detect` and the existing editable confirmation step. | The user asked for photo → product name → search without adding a paid vision API, server upload, or database. | No image leaves the browser; Tesseract is dynamically imported, the worker is self-hosted, and core/language assets come from jsDelivr. OCR remains best-effort and English-only. |
 
 ## Explicit non-decisions
 

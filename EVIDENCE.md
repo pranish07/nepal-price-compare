@@ -5,7 +5,7 @@ Everything below was actually run. Commands are reproducible from the repository
 otherwise. No Serper key was present, so no Serper credits were spent.
 
 Milestone labels map to the project's delivery themes: M0 feasibility, M1 extraction, M2 matching,
-M3 safety/cost controls, M4 streaming/UI, M5 tests/CI/docs, M6 end-to-end smoke.
+M3 safety/cost controls, M4 streaming/UI, M5 tests/CI/docs, M6 end-to-end smoke, M7 image OCR.
 
 ## M0 — Feasibility and robots compliance
 
@@ -96,9 +96,9 @@ $ npm run lint
 (no output; exit 0)
 
 $ npm test
-Test Files  18 passed (18)
-Tests       162 passed (162)
-Duration    ~13 s
+Test Files  19 passed (19)
+Tests       168 passed (168)
+Duration    ~8 s
 ```
 
 Vitest prints a non-fatal config-loader warning about `vitest.config.ts` ESM syntax. The tests pass.
@@ -184,8 +184,50 @@ budget: creditsUsed=0/8 fetchesUsed=0/25 cacheStatus=hit cacheHits=1 cacheMisses
 
 This verifies the 0-credit / 0-fetch second-search requirement in a live process.
 
+## M7 — Image upload OCR
+
+A synthetic label PNG was generated locally with the text `DR. ALTHEA` and `Melaclear Cream 20g`.
+Tesseract.js 7.0.0 was then run in Node with the same pinned core/language assets used by the
+browser wrapper:
+
+OCR output before cleanup:
+
+```json
+{ "text": "DR. ALTHEA\nMelaclear Cream 20g\n", "confidence": 92 }
+```
+
+Flattened text posted to the existing detector:
+
+```text
+POST /api/detect {"input":"DR. ALTHEA Melaclear Cream 20g"} → 200
+{"query":{"name":"Melaclear Cream","brand":"Dr. Althea",
+          "size":{"value":20,"unit":"g"}},"warnings":[]}
+```
+
+`cleanOcrText` flattening and the `/api/detect` hand-off are covered by `src/lib/ocr.test.ts`; the
+19-file / 168-test run above includes those cases. No image was uploaded to the server: the browser
+sends only the cleaned text to `/api/detect`.
+
+Local asset and header checks:
+
+```text
+GET /tesseract/worker.min.js → 200
+Content-Type: application/javascript; charset=UTF-8
+Content-Length: 111307
+
+GET / → Content-Security-Policy:
+default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net;
+style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; font-src 'self';
+connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none';
+frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+```
+
+The production build served by `next build` contains a separate 41 KB chunk containing the OCR API
+layer; the WASM core and language data remain CDN-loaded on first use.
+
 ## Not proven
 
 - Serper `num > 10`, daily ceiling behavior with real Upstash, and GitHub Actions execution.
 - p50/p95 under load, multi-instance rate limiting, and visual layout on real devices.
+- Real-browser OCR drag-and-drop, Web Worker CSP behavior, IndexedDB caching, and camera photos.
 - Complete seller coverage, authenticity, or stock after `fetchedAt`.
