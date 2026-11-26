@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+}
+
+::selection {
+  @apply bg-emerald-200 text-emerald-950;
+}
+
+.skeleton {
+  @apply animate-pulse rounded-md bg-neutral-200;
+}
+
+.card {
+  @apply rounded-2xl border border-neutral-200 bg-white shadow-sm;
+}
+
+.input {
+  @apply w-full rounded-xl border border-neutral-300 bg-white px-3 py-2.5 text-base text-neutral-900 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;
+}
+
+.btn-primary {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.link {
+  @apply font-medium text-emerald-800 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-950 hover:decoration-emerald-700;
+}

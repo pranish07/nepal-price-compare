@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /checkout
+Disallow: /cart
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /unauthorized
+
+Host: https://beautyessentials.com.np
+Sitemap: https://beautyessentials.com.np/sitemap.xml

@@ -1,0 +1,33 @@
+# DECISIONS.md — Nepal Price Compare
+
+Implementation decisions that refined `DESIGN.md`. Status is current unless marked otherwise.
+
+| ID | Decision | Reason | Consequence |
+| --- | --- | --- | --- |
+| D01 | No database, queue, headless browser, or paid search API. | Zero recurring cost on Vercel Hobby plus one-time Serper credits. | Plain HTTP + Cheerio adapters; in-memory state by default, optional Upstash free tier. |
+| D02 | Bonjour adapter uses `/shop/?s=...` HTML, not `/wp-json/wc/store/v1/products`. | `robots.txt` disallows `/wp-json/` and root `/?s=`; `/shop/` and `/product/` are allowed. Live `/shop/?s=dr+althea` returned 14 products. | Respects the store's crawl rules; product pages are parsed with generic extraction. |
+| D03 | Beauty Essentials adapter reads `/shop?search=...` and its RSC payload `initialProductsResponse`. | The live page contains structured product objects with price, sale price, stock, brand, and size. A saved fixture contains 17 products. | Fast, structured parsing without a browser; parser is fixture-tested and may need updates if the store changes. |
+| D04 | Serper requests use `num: 10` and `page`, max 3 variants × 2 pages in v1. | `num > 10` is unverified without a key and must not silently break the 8-credit cap. | Deterministic upper bound of 8 credits. `num > 10` remains an open question, documented in `KNOWN_LIMITATIONS.md`. |
+| D05 | Page 3 logic exists but is disabled (`MAX_SERPER_PAGES = 2`). | It needs a new `.np` host on page 2 and is only allowed for variant 1. | The rule is unit-tested but never runs in production v1. |
+| D06 | Serper is discovery-only; prices are fetched from candidate store pages. | Search snippets are not stable, traceable prices. | Every price carries a store URL and fetch timestamp. Candidates that cannot be parsed are dropped. |
+| D07 | Added `source: "direct"` to the listing enum. | `/api/detect` previews are neither adapter nor Serper results. | Detection output uses the same schema without mislabelling its origin. |
+| D08 | Match threshold is `0.55` (`CONFIG.matchThreshold`). | Balances avoiding unrelated products against keeping sparse listings. | Generic tokens get weight 0.25; brand mismatch and low token coverage reject candidates. |
+| D09 | Different-size and unit-family mismatches are kept but flagged. | Users may still want to see a nearby listing, but must not be misled by a price comparison. | Excluded from Cheapest/Best value by default; `includeDifferentSizes` opts in; `size-unit-mismatch` flag added. |
+| D10 | Ranking weights: price 0.50, stock 0.20, delivery 0.15, trust 0.15. | Price matters most; other signals inform without overriding it. | Missing signals score 0.5 (neutral), never negative. Weights live in `RANK_WEIGHTS`. |
+| D11 | Cache is city-independent; ranking is redone per request. | Location data changes how a listing is scored, but the listing itself does not. | One fetch serves all cities; "Closest" and city notes stay accurate. Cache key: `npc:v1:search:<normalized brand|name|size>`. |
+| D12 | `cache.set` is awaited before the `done` event. | A second identical search immediately after `done` must be a cache hit. | Deterministic 0-credit second search; verified by pipeline tests. |
+| D13 | In-memory cache/rate limits/ledger by default; Upstash implementations provided. | Local/dev works with zero setup; serverless can opt into shared state. | In-memory limits are per instance and documented as a limitation. |
+| D14 | Closest badge prefers exact-size city matches and falls back to different-size only when needed. | A proximity badge should not imply an exact product match. | Non-exact fallback is visible in the table via its flag. |
+| D15 | `extractStoreSignals` splits delivery text into segments and strips labels like `INFO`. | Earlier extraction swallowed navigation/phone text and produced misleading locations. | Beauty fixture now yields `Dharan, Sunsari, Nepal` and three distinct delivery statements. |
+| D16 | Streamed listings are rendered in a live `ListingTable` while `phase === "searching"`. | The SSE `listing` events were collected but otherwise invisible; streaming should be perceptible. | Users see results before ranking; rankings appear on `done`. |
+| D17 | ESLint flat config imports `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript` directly. | `FlatCompat` caused `TypeError: Converting circular structure to JSON` with the installed Next version. | `npm run lint` passes without a compatibility shim. |
+| D18 | Keep Vitest 4.1.12. | Vitest 5 is incompatible with the Node 25 runtime available in this environment; CI uses Node 22. | Tests run locally and in CI with one pinned version. |
+| D19 | CI runs `npm ci`, typecheck, lint, test, then build on Node 22. | Catch type, style, behavior, and bundling regressions independently. | One `verify` job; no secrets required. Serper probe is deliberately manual because it spends credits. |
+| D20 | Add `scripts/verify-serper.mjs` as a manual, non-secret-printing probe. | The README promises a way to check response shape and `num > 10`. | Running it without a key exits 0 and spends nothing; with a key it spends credits and prints only shape metadata. |
+| D21 | Store discovery uses the brand alone when known, otherwise the most distinctive name token. | Live smoke test showed full detected names return irrelevant/zero results: Bonjour `Dr. Althea Melaclear Cream` returned 6 unrelated cards, while `dr althea` returned the target; Beauty returned 0 vs 17 payload products. | Adapters fetch broader candidate sets; exact-product matching still happens locally before display. Added `searchText` tests. |
+
+## Explicit non-decisions
+
+- We do not claim Serper honors `num > 10`; it remains unverified.
+- We do not guarantee p50/p95 targets under load; they are design targets.
+- We do not claim complete seller coverage, authenticity, efficacy, or current stock after fetch time.

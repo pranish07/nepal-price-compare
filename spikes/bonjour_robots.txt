@@ -1,0 +1,68 @@
+# Allow all search engines
+User-agent: *
+
+# Block access to WordPress admin (but allow AJAX requests)
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+
+# Block sensitive pages that should not be indexed
+Disallow: /wp-login.php
+Disallow: /wp-register.php
+Disallow: /cart/
+Disallow: /checkout/
+Disallow: /my-account/
+Disallow: /track-order/
+Disallow: /reset-password/
+
+# Allow important WooCommerce pages for SEO
+Allow: /product/
+Allow: /product-category/
+Allow: /shop/
+Allow: /collections/
+
+# Prevent duplicate/thin content indexing
+Disallow: /?s=
+Disallow: /wp-json/
+Disallow: /xmlrpc.php
+Disallow: /feed/
+Disallow: /comments/
+Disallow: /?orderby=
+Disallow: /*add-to-cart=
+Disallow: /*filter_
+
+# Block internal search and sorting URLs
+Disallow: /?search_query=
+Disallow: /*?orderby=
+Disallow: /*?filter=
+
+# Block common WordPress files that should not be indexed
+Disallow: /readme.html
+Disallow: /license.txt
+Disallow: /wp-config.php
+Disallow: /wp-includes/
+Disallow: /cgi-bin/
+Disallow: /?attachment_id=
+
+# Allow social media bots to fetch images for previews
+User-agent: FacebookBot
+Allow: /wp-content/uploads/
+User-agent: Twitterbot
+Allow: /wp-content/uploads/
+User-agent: WhatsApp
+Allow: /wp-content/uploads/
+
+# Block bad bots (prevents spam and unwanted crawling)
+User-agent: AhrefsBot
+Disallow: /
+User-agent: SemrushBot
+Disallow: /
+User-agent: MJ12bot
+Disallow: /
+User-agent: DotBot
+Disallow: /
+
+# Crawl-delay (reduces server load from aggressive bots)
+Crawl-delay: 10
+
+# Specify sitemap location
+Sitemap: https://bonjournp.com/sitemap_index.xml
