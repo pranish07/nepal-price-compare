@@ -8,6 +8,7 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".next/**",
+      ".mcp-build/**",
       "coverage/**",
       "spikes/**",
       "public/tesseract/**",
