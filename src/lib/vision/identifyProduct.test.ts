@@ -24,7 +24,7 @@ function depsFor(fetchImpl: IdentifyProductDeps["fetch"]): IdentifyProductDeps {
 const image = { imageBase64: "AAAA", mimeType: "image/jpeg" } as const;
 
 describe("identifyProduct", () => {
-  it("posts an inline image with the required JSON generation config", async () => {
+  it("posts an inline image with the required JSON generation config and live-accepted schema", async () => {
     const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
       modelResponse('{"brand":"CeraVe","name":"Moisturising Cream","size":"","confidence":0.91}'),
     );
@@ -56,8 +56,21 @@ describe("identifyProduct", () => {
     expect(body.generationConfig).toMatchObject({
       temperature: 0,
       responseMimeType: "application/json",
-      responseSchema: { type: "object", additionalProperties: false },
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          brand: { type: "STRING", nullable: true },
+          name: { type: "STRING", nullable: true },
+          size: { type: "STRING", nullable: true },
+          confidence: { type: "NUMBER" },
+        },
+        required: ["brand", "name", "size", "confidence"],
+      },
     });
+    expect(JSON.stringify(body.generationConfig.responseSchema)).not.toContain(
+      "additionalProperties",
+    );
+    expect(JSON.stringify(body.generationConfig.responseSchema)).not.toContain('"string","null"');
     const prompt = String(body.contents[0]?.parts[0]?.text);
     expect(prompt).toMatch(/skincare or beauty/i);
     expect(prompt).toMatch(/Never guess or infer the size/i);
