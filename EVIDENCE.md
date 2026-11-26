@@ -116,8 +116,13 @@ Route (app)
 
 Documentation present: `README.md`, `DESIGN.md`, `ARCHITECTURE.md`, `DATA_MODEL.md`,
 `DECISIONS.md`, `KNOWN_LIMITATIONS.md`, `SPIKES.md`, `EVIDENCE.md`, `.env.example`.
-CI: `.github/workflows/ci.yml` runs `npm ci`, typecheck, lint, test, build on Node 22. CI itself was
-not executed on GitHub; the same four commands were executed locally with the results above.
+CI: `.github/workflows/ci.yml` runs `npm ci`, typecheck, lint, test, build on Node 22.
+
+Initial GitHub run `45748944754` failed at `npm ci` because the Windows/npm 11-generated lockfile
+omitted platform-optional `@emnapi/*` entries required by npm 10 on Linux. Commit `b5c0cfe`
+regenerated `package-lock.json` with npm 10. Re-run `45749158192` passed every step in 39 s.
+GitHub reports a non-fatal annotation that `actions/checkout@v4` and `actions/setup-node@v4` target
+Node 20 and are forced onto Node 24 by the runner; this did not affect the job.
 
 ## M6 — End-to-end smoke test
 
