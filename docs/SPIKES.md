@@ -169,22 +169,35 @@ was written.
 ### Chosen request shape
 
 The runtime sends camelCase `generationConfig.responseMimeType` and
-`generationConfig.responseSchema` with `temperature: 0`, matching the user-required contract and the
-current JavaScript examples. The REST examples use snake_case aliases; this ambiguity is recorded
-below rather than hidden. The model name is **never** hard-coded in runtime code: `GEMINI_MODEL` is
-required and `.env.example` documents `gemini-3.5-flash-lite`.
+`generationConfig.responseSchema` with `temperature: 0`, matching the user-required contract. The
+`responseSchema` value uses the legacy `generateContent` Schema proto JSON shape: uppercase
+`OBJECT`/`STRING`/`NUMBER`, `nullable: true`, and no `additionalProperties`. The newer JSON Schema
+shape (`responseJsonSchema` / `responseFormat.text.schema`) documented for current examples is **not**
+used because the live `v1beta/...:generateContent` endpoint rejected it. The model name is **never**
+hard-coded in runtime code: `GEMINI_MODEL` is required and `.env.example` documents
+`gemini-3.5-flash-lite`.
 
-### Assumptions and explicit non-verification
+### Live verification on 2026-11-26
 
-- **Not verified live:** no `GEMINI_API_KEY` was available, so no Gemini request was made. Acceptance
-  of camelCase `responseSchema` by the live v1beta REST endpoint is assumed from protobuf JSON
-  field-name compatibility and the official JS examples. Unit tests assert the exact outgoing body;
-  CI does not call Gemini.
-- **Not verified live:** actual extraction quality on a La Roche-Posay label. The committed fixture is
-  a synthetic PNG and the recorded response is a saved test double, not a live model response.
+- The first request used JSON Schema unions (`type: ["string", "null"]`) and
+  `additionalProperties: false`. The live endpoint returned `400 INVALID_ARGUMENT`: proto fields are
+  not repeating, and `additionalProperties` is not present in that schema proto.
+- The corrected proto shape returned HTTP `200` with `gemini-3.5-flash-lite`. The response contained a
+  valid `candidates[].content.parts[].text` JSON string. The synthetic label correctly returned
+  `null` brand/name/size and confidence `0`.
+- This verifies request acceptance, inline image transport, and response parsing. It does **not**
+  verify extraction quality on a real product photo.
+- No key or upstream body was logged or committed; the diagnostic printed only status and a
+  key-redacted response.
+
+### Remaining assumptions and explicit non-verification
+
+- **Not verified live:** actual extraction quality on a real La Roche-Posay label. The committed
+  fixture is a synthetic PNG and the recorded response is a saved test double, not a live model
+  response.
 - **Not verified:** numeric free-tier RPM/RPD limits for this project. The app therefore adds its own
   per-IP hourly limit and global daily ceiling instead of relying on published numbers.
 - **Assumed from docs:** free-tier content may be used to improve Google products. The UI shows the
   exact required privacy notice before upload.
 - No Gemini Docs MCP server was used. Official documentation was read with HTTP tools only; the
-  runtime calls Gemini REST directly.
+  runtime calls Gemini REST directly. CI still makes no Gemini request.

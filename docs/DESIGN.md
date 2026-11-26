@@ -45,7 +45,7 @@ V1 is deliberately narrow:
 | A9 | Vercel Hobby allows a 60 s streaming function | Vercel docs | **Verified by documentation**; route sets `maxDuration = 60` |
 | A10 | In-memory rate limits/cache are per-instance on serverless | Platform behavior | **Known limitation**; KV adapter is provided and recommended |
 | A11 | A free stable Gemini model accepts inline images and structured JSON | Official docs read 2026-11-26; `SPIKES.md` §7 | **Verified by documentation**, not live |
-| A12 | camelCase `responseSchema` is accepted by live v1beta REST | Official JS examples and protobuf JSON aliases | **Assumed**; no key was available; tests assert the outgoing body |
+| A12 | camelCase `responseSchema` is accepted by live v1beta REST when it uses the Schema proto shape | Live request on 2026-11-26; `SPIKES.md` §7 | **Verified** for request acceptance and response parsing; extraction quality on a real photo remains unverified |
 | A13 | Numeric free-tier RPM/RPD limits | Signed-in AI Studio page required; docs say limits are not guaranteed | **Unverified**; app enforces its own 10/IP/hour and 200/day ceilings |
 | A14 | Free-tier content may be used to improve Google products | Official model card | **Verified by documentation**; exact privacy notice shown in UI |
 

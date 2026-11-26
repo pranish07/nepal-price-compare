@@ -159,7 +159,8 @@ Gemini vision latency was not measured live; the REST call has a 20 s timeout in
 The browser downsizes the selected photo to 1024 px on the long edge and re-encodes it as JPEG q0.85.
 `/api/detect-image` checks the file, spends the per-IP and global budgets, then calls
 `identifyProduct()` with `temperature: 0`, `responseMimeType: "application/json"`, and a bounded
-`responseSchema`. `parseProductGuess()` sanitizes the JSON, and `queryFromGuess()` reuses
+legacy Schema proto `responseSchema` (uppercase types, `nullable: true`). `parseProductGuess()`
+sanitizes the JSON, and `queryFromGuess()` reuses
 `parseProductText()` and the size parser so image results and typed results share one normalization
 path. The client shows a skeleton, then an editable `ProductConfirm` card with a low-confidence
 warning; searching continues through the normal SSE pipeline.

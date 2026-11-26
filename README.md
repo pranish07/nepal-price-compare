@@ -320,9 +320,11 @@ Further reading: `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/DECISIONS.m
 - **Verified from official docs on 2026-11-26:** a free stable model with image input and structured
   output, inline `generateContent` image parts, and the privacy implication of free-tier data use.
   Sources are listed in `docs/SPIKES.md` §7.
-- **Not verified live:** no `GEMINI_API_KEY` was available, so no Gemini request was made; acceptance
-  of camelCase `responseSchema` on the live REST endpoint and real extraction quality are assumed.
+- **Verified live on 2026-11-26:** a Gemini REST request with an inline image returned HTTP 200 using
+  camelCase `responseSchema` in the legacy Schema proto shape. The initial JSON Schema shape returned
+  400 and was fixed; details are in `docs/SPIKES.md` §7 and decision D30.
+- **Not verified live:** extraction quality on a real product photo.
 - **Not publicly verified:** numeric free-tier RPM/RPD limits require signing in to AI Studio, so the
   app enforces its own per-IP and global ceilings.
-- **Not a real photo:** the La Roche-Posay fixture is synthetic and its Gemini response is a recorded
-  test double, not a live model response.
+- **Not a real photo:** the La Roche-Posay fixture is synthetic and its recorded response is a test
+  double. The live diagnostic used the same synthetic PNG only to verify request acceptance.

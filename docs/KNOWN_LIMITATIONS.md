@@ -18,9 +18,10 @@ This file is intentionally blunt. It describes what the current build does not p
 - **Serper `num > 10` is unverified.** There is no `SERPER_API_KEY` in the development environment.
   Production code always sends `num: 10`. `npm run verify:serper -- "query" --num=20` is provided to
   check the behavior manually; it spends credits when a key is set.
-- **No live Gemini call was made.** There is no `GEMINI_API_KEY`. Official docs were checked on
-  2026-11-26, but acceptance of camelCase `responseSchema` on the live REST endpoint and real label
-  extraction quality are assumptions, not observations.
+- **Live Gemini request acceptance is verified, but extraction quality is not.** A configured key was
+  used on 2026-11-26 to confirm that camelCase `responseSchema` in the legacy Schema proto shape
+  returns HTTP 200. The test image was synthetic, so real label accuracy remains unobserved; see
+  `docs/SPIKES.md` §7.
 - **Numeric Gemini free-tier RPM/RPD limits are not publicly available** without signing in to AI
   Studio. The app's 10/IP/hour and 200/day ceilings are its own safety budget, not a claim about
   Google's limits.
