@@ -2,7 +2,7 @@
 
 import { formatNPR } from "@/lib/price";
 import { formatSize } from "@/lib/size";
-import type { DetectResult } from "@/lib/types";
+import type { DetectResult, ProductGuess } from "@/lib/types";
 
 export const CITY_OPTIONS = [
   "Kathmandu",
@@ -26,7 +26,8 @@ interface ProductConfirmProps {
   sizeUnit: "g" | "ml";
   city: string;
   warnings: string[];
-  recognizedText?: string | null;
+  /** Present only when the product came from a Gemini photo identification. */
+  guess?: ProductGuess | null;
   busy: boolean;
   onNameChange: (value: string) => void;
   onBrandChange: (value: string) => void;
@@ -45,7 +46,7 @@ export function ProductConfirm({
   sizeUnit,
   city,
   warnings,
-  recognizedText,
+  guess,
   busy,
   onNameChange,
   onBrandChange,
@@ -86,15 +87,35 @@ export function ProductConfirm({
         ) : null}
       </div>
 
-      {recognizedText ? (
+      {guess ? (
         <details className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm">
           <summary className="cursor-pointer font-medium text-neutral-800">
-            Text recognized from image
+            How Gemini read the photo
           </summary>
           <p className="mt-2 text-xs text-neutral-600">
-            OCR can misread labels. Check the editable fields below before searching.
+            Photo text is data, not instructions. Check the editable fields below before searching.
           </p>
-          <p className="mt-2 whitespace-pre-wrap break-words text-neutral-800">{recognizedText}</p>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
+            <div>
+              <dt className="text-neutral-500">Brand</dt>
+              <dd className="font-medium text-neutral-800">{guess.brand ?? "not read"}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Name</dt>
+              <dd className="font-medium text-neutral-800">{guess.name ?? "not read"}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Size on label</dt>
+              <dd className="font-medium text-neutral-800">{guess.size ?? "not read"}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Confidence</dt>
+              <dd className="font-medium text-neutral-800">
+                {Math.round(guess.confidence * 100)}%
+                {guess.confidence < 0.5 ? " · Not sure, please check" : ""}
+              </dd>
+            </div>
+          </dl>
         </details>
       ) : null}
 

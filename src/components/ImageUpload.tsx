@@ -1,43 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ACCEPTED_IMAGE_TYPES,
-  cleanOcrText,
-  isConfidentOcr,
-  recognizeImage,
-  validateImageFile,
-  type OcrProgress,
-} from "@/lib/ocr";
+import { prepareImageForUpload } from "@/lib/vision/client";
+import { DetectImageResultSchema, type DetectImageResult } from "@/lib/types";
 
 interface ImageUploadProps {
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
-  /** Receives flattened OCR text; the parent sends it through /api/detect. */
-  onRecognized: (text: string) => Promise<void> | void;
-  /** Moves focus to the ordinary name/link input when OCR is unclear. */
+  onDetected: (result: DetectImageResult) => Promise<void> | void;
+  /** Moves focus to the ordinary name input when Gemini is unavailable. */
   onManualEntry: () => void;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  "loading tesseract core": "Loading OCR engine",
-  "initializing tesseract": "Preparing OCR",
-  "loading language traineddata": "Loading language data",
-  "recognizing text": "Recognizing product label",
-  "trying label layouts": "Trying label layouts",
-};
+const PRIVACY_NOTICE =
+  "Photos are sent to Google's free Gemini API; free-tier data may be used to improve Google products. Don't upload private photos.";
 
-function progressLabel(status: string): string {
-  return STATUS_LABELS[status.toLowerCase()] ?? (status || "Reading image");
-}
-
-export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntry }: ImageUploadProps) {
+export function ImageUpload({ disabled, onBusyChange, onDetected, onManualEntry }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [progress, setProgress] = useState<OcrProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editableOcr, setEditableOcr] = useState<string | null>(null);
-  const [editedOcr, setEditedOcr] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const mounted = useRef(true);
@@ -61,76 +42,44 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
   async function handleFile(candidate: File | undefined) {
     if (!candidate || inactive) return;
 
-    const validation = validateImageFile(candidate);
-    if (validation) {
-      setFile(null);
-      setPreviewUrl(null);
-      setProgress(null);
-      setError(validation);
-      setEditableOcr(null);
-      setEditedOcr("");
+    if (!candidate.type.startsWith("image/")) {
+      setError("Choose a JPG, PNG, or WebP image.");
       return;
     }
 
     setError(null);
-    setEditableOcr(null);
-    setEditedOcr("");
     setFile(candidate);
     setPreviewUrl(URL.createObjectURL(candidate));
-    setProgress({ status: "Preparing image", progress: 0 });
     setBusy(true);
     onBusyChange(true);
 
     try {
-      const result = await recognizeImage(candidate, (update) => {
-        if (mounted.current) setProgress(update);
-      });
-      const text = cleanOcrText(result.text);
-      if (!text) {
-        throw new Error(
-          "No text was found in that image. Try a clearer photo or type the product name instead.",
-        );
-      }
-      if (!mounted.current) return;
-      setProgress({ status: "Recognizing product label", progress: 100 });
+      const blob = await prepareImageForUpload(candidate);
+      const form = new FormData();
+      form.append("image", blob, "product.jpg");
 
-      if (isConfidentOcr(result.text, result.confidence)) {
-        await onRecognized(text);
-      } else {
-        // Not a rejection: the exact OCR text stays visible and editable.
-        setProgress(null);
-        setEditableOcr(text);
-        setEditedOcr(text);
+      const response = await fetch("/api/detect-image", { method: "POST", body: form });
+      const data = (await response.json().catch(() => null)) as unknown;
+      if (!response.ok) {
+        const message =
+          typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+            ? data.error
+            : "The photo could not be identified. Type the product name instead.";
+        throw new Error(message);
       }
+
+      const parsed = DetectImageResultSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error("The photo could not be identified. Type the product name instead.");
+      }
+      if (mounted.current) await onDetected(parsed.data);
     } catch (caught) {
       if (!mounted.current) return;
-      const message = caught instanceof Error ? caught.message : "That image could not be read.";
-      setError(message);
-      setProgress(null);
-    } finally {
-      if (mounted.current) {
-        setBusy(false);
-        onBusyChange(false);
-      }
-    }
-  }
-
-  async function submitEditedOcr() {
-    const value = editedOcr.trim();
-    if (!value) {
-      setError("Enter the product name or corrected OCR text.");
-      return;
-    }
-
-    setError(null);
-    setEditableOcr(null);
-    setBusy(true);
-    onBusyChange(true);
-    try {
-      await onRecognized(value);
-    } catch (caught) {
-      if (!mounted.current) return;
-      setError(caught instanceof Error ? caught.message : "That text could not be detected.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The photo could not be identified. Type the product name instead.",
+      );
     } finally {
       if (mounted.current) {
         setBusy(false);
@@ -143,10 +92,7 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
     if (busy) return;
     setFile(null);
     setPreviewUrl(null);
-    setProgress(null);
     setError(null);
-    setEditableOcr(null);
-    setEditedOcr("");
   }
 
   return (
@@ -157,12 +103,15 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
             Or upload a product photo
           </h2>
           <p id="image-hint" className="mt-1 text-xs text-neutral-600">
-            OCR runs in your browser with Tesseract.js. The photo is not uploaded. If the text looks
-            uncertain, you can edit it before searching.
+            {PRIVACY_NOTICE}
           </p>
         </div>
         {file && !busy ? (
-          <button type="button" className="text-xs font-semibold text-neutral-600 underline" onClick={clearImage}>
+          <button
+            type="button"
+            className="text-xs font-semibold text-neutral-600 underline"
+            onClick={clearImage}
+          >
             Remove image
           </button>
         ) : null}
@@ -170,13 +119,7 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
 
       <label
         htmlFor="product-image"
-        aria-describedby={
-          error
-            ? "image-error image-hint"
-            : editableOcr !== null
-              ? "image-ocr-notice image-hint"
-              : "image-hint"
-        }
+        aria-describedby={error ? "image-error image-hint" : "image-hint"}
         onDragOver={(event) => {
           event.preventDefault();
           if (!inactive) setDragActive(true);
@@ -196,7 +139,7 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
         <input
           id="product-image"
           type="file"
-          accept={ACCEPTED_IMAGE_TYPES.join(",")}
+          accept="image/*"
           className="sr-only"
           disabled={inactive}
           onChange={(event) => {
@@ -212,10 +155,10 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium text-neutral-800">
-            {busy ? "Reading image…" : "Choose an image or drop it here"}
+            {busy ? "Identifying product…" : "Choose an image or drop it here"}
           </span>
           <span className="block text-xs text-neutral-500">
-            JPG, PNG, WebP, GIF, or BMP · max 8 MB · bright light, straight-on, text fills frame
+            JPG, PNG, or WebP · max 3 MB · bright light, straight-on, text fills frame
           </span>
         </span>
         {previewUrl ? (
@@ -228,64 +171,21 @@ export function ImageUpload({ disabled, onBusyChange, onRecognized, onManualEntr
         ) : null}
       </label>
 
-      {progress && !error ? (
-        <div className="mt-3" role="status" aria-live="polite">
-          <div className="flex items-center justify-between gap-3 text-xs text-neutral-700">
-            <span>{progressLabel(progress.status)}</span>
-            <span>{progress.progress}%</span>
-          </div>
-          <div
-            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-neutral-200"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progress.progress}
-            aria-label="Image reading progress"
-          >
-            <div
-              className="h-full rounded-full bg-emerald-700 transition-[width] duration-200"
-              style={{ width: `${progress.progress}%` }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {editableOcr !== null && !error && !busy ? (
-        <div
-          id="image-ocr-notice"
-          role="status"
-          className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3"
-        >
-          <p className="text-sm font-semibold text-amber-900">Check what OCR read</p>
-          <p className="mt-1 text-xs text-amber-800">
-            The text looks uncertain. Edit it below and continue, or type the product name in the
-            search box.
-          </p>
-          <label htmlFor="ocr-edit" className="mt-2 block text-xs font-medium text-amber-900">
-            Recognized text
-          </label>
-          <textarea
-            id="ocr-edit"
-            className="input mt-1 min-h-20 resize-y"
-            value={editedOcr}
-            onChange={(event) => setEditedOcr(event.target.value)}
-            spellCheck={false}
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button type="button" className="btn-primary" onClick={() => void submitEditedOcr()}>
-              Use this text
-            </button>
-            <button type="button" className="btn-secondary" onClick={onManualEntry}>
-              Type product name instead
-            </button>
-          </div>
-        </div>
+      {busy ? (
+        <p className="mt-3 text-xs text-neutral-600" role="status" aria-live="polite">
+          Resizing the photo and asking Gemini to identify the label…
+        </p>
       ) : null}
 
       {error ? (
-        <p id="image-error" role="alert" className="mt-3 text-sm font-medium text-red-700">
-          {error}
-        </p>
+        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3">
+          <p id="image-error" role="alert" className="text-sm font-medium text-red-700">
+            {error}
+          </p>
+          <button type="button" className="btn-secondary mt-2" onClick={onManualEntry}>
+            Type product name instead
+          </button>
+        </div>
       ) : null}
     </section>
   );

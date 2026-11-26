@@ -11,9 +11,11 @@ import { TopPicks } from "@/components/TopPicks";
 import { formatSize } from "@/lib/size";
 import type { SortKey, SortState } from "@/lib/sort";
 import type {
+  DetectImageResult,
   DetectResult,
   Listing,
   PipelineEvent,
+  ProductGuess,
   ProductQuery,
   SearchResult,
   SourceReport,
@@ -57,7 +59,7 @@ export function SearchApp() {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [recognizedText, setRecognizedText] = useState<string | null>(null);
+  const [imageGuess, setImageGuess] = useState<ProductGuess | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [imageResetKey, setImageResetKey] = useState(0);
   const [sort, setSort] = useState<SortState>({ key: "rank", dir: "desc" });
@@ -73,6 +75,9 @@ export function SearchApp() {
   const confirmWarnings = useMemo(() => {
     if (!detected) return [];
     const warnings = [...detected.warnings];
+    if (imageGuess && imageGuess.confidence < 0.5) {
+      warnings.unshift("Not sure, please check");
+    }
     if (!editSizeValue.trim()) {
       const message = "No size is set. Add it for an exact-size comparison and price per unit.";
       if (!warnings.some((warning) => warning.toLowerCase().includes("size"))) {
@@ -80,10 +85,11 @@ export function SearchApp() {
       }
     }
     return warnings;
-  }, [detected, editSizeValue]);
+  }, [detected, editSizeValue, imageGuess]);
 
-  function applyDetected(data: DetectResult) {
+  function applyDetected(data: DetectResult, guess: ProductGuess | null = null) {
     setDetected(data);
+    setImageGuess(guess);
     setEditName(data.query.name);
     setEditBrand(data.query.brand ?? "");
     setEditSizeValue(data.query.size ? String(data.query.size.value) : "");
@@ -100,14 +106,22 @@ export function SearchApp() {
     });
   }
 
-  async function runDetect(value: string, isMain: boolean, recognizedFromImage?: string) {
+  function applyImageDetected(data: DetectImageResult) {
+    setInput([data.query.brand, data.query.name].filter(Boolean).join(" "));
+    applyDetected(
+      { query: data.query, warnings: data.warnings },
+      data.guess,
+    );
+  }
+
+  async function runDetect(value: string, isMain: boolean) {
     const trimmed = value.trim();
     if (!trimmed) return;
 
     setError(null);
+    setImageGuess(null);
     if (isMain) {
       setPhase("detecting");
-      setRecognizedText(recognizedFromImage ?? null);
       setDetected(null);
       setResult(null);
       setListings([]);
@@ -153,7 +167,6 @@ export function SearchApp() {
   }
 
   function handleManualEntry() {
-    setImageResetKey((previous) => previous + 1);
     setImageBusy(false);
     requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -307,7 +320,7 @@ export function SearchApp() {
     setResult(null);
     setError(null);
     setStatusMessage("");
-    setRecognizedText(null);
+    setImageGuess(null);
     setImageBusy(false);
     setImageResetKey((previous) => previous + 1);
     setOtherUrl("");
@@ -420,7 +433,7 @@ export function SearchApp() {
             key={imageResetKey}
             disabled={busy}
             onBusyChange={setImageBusy}
-            onRecognized={(text) => runDetect(text, true, text)}
+            onDetected={(result) => applyImageDetected(result)}
             onManualEntry={handleManualEntry}
           />
 
@@ -452,7 +465,7 @@ export function SearchApp() {
           </div>
         ) : null}
 
-        {phase === "detecting" ? <DetectSkeleton /> : null}
+        {phase === "detecting" || imageBusy ? <DetectSkeleton /> : null}
 
         {showConfirm && detected ? (
           <div ref={confirmRef} className="mt-6 scroll-mt-6">
@@ -464,7 +477,7 @@ export function SearchApp() {
               sizeUnit={editSizeUnit}
               city={editCity}
               warnings={confirmWarnings}
-              recognizedText={recognizedText}
+              guess={imageGuess}
               busy={phase === "searching"}
               onNameChange={setEditName}
               onBrandChange={setEditBrand}
@@ -571,8 +584,8 @@ export function SearchApp() {
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">1 · Detect</p>
               <p className="mt-1 text-sm text-neutral-700">
-                We read the product page&apos;s structured data or run free OCR on your photo in the
-                browser, then show the detected name, brand, and size for you to edit.
+                We read the product page&apos;s structured data, or use free Gemini to identify a
+                photo of the label, then show the detected name, brand, and size for you to edit.
               </p>
             </div>
             <div className="card p-4">
