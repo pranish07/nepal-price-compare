@@ -3,13 +3,20 @@ import { createCacheStore, SingleFlight } from "./cache";
 import { CONFIG } from "./config";
 import { DomainLimiter, safeFetch } from "./http";
 import type { PipelineDeps } from "./pipeline";
-import { createDailyLedger, createRateLimiter, type RateLimiter } from "./rate-limit";
+import {
+  createDailyLedger,
+  createRateLimiter,
+  type DailyCreditLedger,
+  type RateLimiter,
+} from "./rate-limit";
 import { SerperClient } from "./serper";
 
 export interface AppContainer {
   deps: PipelineDeps;
   searchLimiter: RateLimiter;
   detectLimiter: RateLimiter;
+  imageLimiter: RateLimiter;
+  geminiLedger: DailyCreditLedger;
 }
 
 function createContainer(): AppContainer {
@@ -29,6 +36,8 @@ function createContainer(): AppContainer {
     deps,
     searchLimiter: createRateLimiter(CONFIG.searchRateLimitPerHour, 3600),
     detectLimiter: createRateLimiter(CONFIG.detectRateLimitPerHour, 3600),
+    imageLimiter: createRateLimiter(CONFIG.imageDetectRateLimitPerHour, 3600),
+    geminiLedger: createDailyLedger(CONFIG.geminiDailyCeiling, "gemini"),
   };
 }
 

@@ -1,6 +1,8 @@
 import { MemoryDailyCreditLedger, type DailyCreditLedger } from "./budget";
 import { isKvConfigured } from "./config";
 
+export type { DailyCreditLedger } from "./budget";
+
 export interface RateLimitResult {
   allowed: boolean;
   limit: number;
@@ -136,10 +138,11 @@ export class UpstashDailyCreditLedger implements DailyCreditLedger {
     private readonly token: string,
     private readonly ceiling: number,
     private readonly now: () => Date = () => new Date(),
+    private readonly namespace = "credits",
   ) {}
 
   private key(): string {
-    return `npc:v1:credits:${this.now().toISOString().slice(0, 10)}`;
+    return `npc:v1:${this.namespace}:${this.now().toISOString().slice(0, 10)}`;
   }
 
   private headers(): Record<string, string> {
@@ -180,11 +183,17 @@ export class UpstashDailyCreditLedger implements DailyCreditLedger {
   }
 }
 
-export function createDailyLedger(ceiling: number): DailyCreditLedger {
+export function createDailyLedger(ceiling: number, namespace = "credits"): DailyCreditLedger {
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (isKvConfigured() && url && token) {
-    return new UpstashDailyCreditLedger(url.replace(/\/$/, ""), token, ceiling);
+    return new UpstashDailyCreditLedger(
+      url.replace(/\/$/, ""),
+      token,
+      ceiling,
+      () => new Date(),
+      namespace,
+    );
   }
   return new MemoryDailyCreditLedger(ceiling);
 }

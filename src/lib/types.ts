@@ -180,6 +180,22 @@ export const DetectResultSchema = z.object({
 });
 export type DetectResult = z.infer<typeof DetectResultSchema>;
 
+/** Untrusted model output before it is normalized into a ProductQuery. */
+export const ProductGuessSchema = z.object({
+  brand: z.string().max(120).nullable(),
+  name: z.string().max(120).nullable(),
+  size: z.string().max(120).nullable(),
+  confidence: z.number().min(0).max(1),
+});
+export type ProductGuess = z.infer<typeof ProductGuessSchema>;
+
+export const DetectImageResultSchema = z.object({
+  guess: ProductGuessSchema,
+  query: ProductQuerySchema,
+  warnings: z.array(z.string()),
+});
+export type DetectImageResult = z.infer<typeof DetectImageResultSchema>;
+
 export type PipelineEvent =
   | { type: "status"; phase: string; message: string }
   | { type: "source"; source: SourceReport }

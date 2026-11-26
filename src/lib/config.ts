@@ -34,6 +34,11 @@ export const CONFIG = {
   // Rate limits.
   searchRateLimitPerHour: intFromEnv("SEARCH_RATE_LIMIT_PER_HOUR", 10),
   detectRateLimitPerHour: intFromEnv("DETECT_RATE_LIMIT_PER_HOUR", 30),
+  imageDetectRateLimitPerHour: intFromEnv("IMAGE_DETECT_RATE_LIMIT_PER_HOUR", 10),
+
+  // Free Gemini image detection. The model is never defaulted in runtime code.
+  geminiModel: process.env.GEMINI_MODEL?.trim() || "",
+  geminiDailyCeiling: intFromEnv("GEMINI_DAILY_CEILING", 200),
 
   // Matching / ranking.
   matchThreshold: 0.55,
@@ -54,4 +59,8 @@ export function isKvConfigured(): boolean {
     process.env.UPSTASH_REDIS_REST_URL?.trim() &&
       process.env.UPSTASH_REDIS_REST_TOKEN?.trim(),
   );
+}
+
+export function isGeminiConfigured(): boolean {
+  return Boolean(process.env.GEMINI_API_KEY?.trim() && process.env.GEMINI_MODEL?.trim());
 }
